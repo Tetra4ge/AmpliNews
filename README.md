@@ -1,16 +1,85 @@
-<h1 align="center">Personalized News Digest Agent with Bias Detection</h1>
+<h1 align="center">AmpliNews: Personalized News Digest Agent with Bias Detection</h1>
 
 An intelligent, agentic news curator designed to combat political polarization and algorithmic echo chambers. Built for the **CockroachDB × AWS Hackathon**.
 
 ## The Problem
 Social media algorithms optimize for engagement by feeding users content that aligns with their pre-existing beliefs, creating dangerous "echo chambers". Over time, this leads to polarization and a lack of exposure to diverse perspectives.
 
+<div align="center">
+  <img src="https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangGraph" />
+  <img src="https://img.shields.io/badge/CockroachDB-6933FF?style=for-the-badge&logo=cockroachlabs&logoColor=white" alt="CockroachDB" />
+  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/AWS_Lambda-%23FF9900.svg?style=for-the-badge&logo=awslambda&logoColor=white" alt="AWS Lambda" />
+  <img src="https://img.shields.io/badge/AWS_EventBridge-%238C4FFF.svg?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS EventBridge" />
+  <img src="https://img.shields.io/badge/AWS_S3-%23569A31.svg?style=for-the-badge&logo=amazons3&logoColor=white" alt="AWS S3" />
+  <img src="https://img.shields.io/badge/AWS_SES-%230073BB.svg?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS SES" />
+</div>
+
 ## Our Solution
-The **Personalized News Digest Agent** learns your reading habits and interests to deliver relevant news—but actively monitors for bias. If it detects that you are falling into a filter bubble (e.g., only reading left-leaning or right-leaning articles), it deliberately retrieves and suggests high-quality, contrarian articles on the same topics to challenge your perspective.
+The **AmpliNews** agent learns your reading habits and interests to deliver relevant news—but actively monitors for bias. If it detects that you are falling into a filter bubble (e.g., only reading left-leaning or right-leaning articles), it deliberately retrieves and suggests high-quality, contrarian articles on the same topics to challenge your perspective.
 
 ## Architecture & Tech Stack
 
 This project leverages a modern, serverless agentic stack:
+
+```mermaid
+graph TD
+    User([User]) --> UI[React + Vite UI]
+    UI <--> |Auth| Supa[(Supabase Auth)]
+    UI --> |REST API| API[FastAPI Backend]
+    
+    subgraph Agent Loop [LangGraph + Groq Agent]
+        direction TB
+        API --> Context[Retrieve Context]
+        Context --> Search[Vector Search]
+        Search --> Detect{Echo Chamber?}
+        Detect -- Yes --> Contrarian[Fetch Contrarian Views]
+        Detect -- No --> Synth[Synthesize Digest]
+        Contrarian --> Synth
+    end
+    
+    Synth <--> |Agent Skills| DB[(CockroachDB: pgvector)]
+    Context <--> |SQL| DB
+    Search <--> |Similarity Match| DB
+    
+    Synth --> S3[(AWS S3: Backups)]
+    
+    Cron[AWS EventBridge] --> Lambda[AWS Lambda]
+    Lambda --> API
+    Lambda --> SES[AWS SES: Email Digest]
+```
+
+## Backend Data Flow
+
+```mermaid
+graph TD
+    classDef ingest fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff;
+    classDef agent fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff;
+    classDef db fill:#FF9800,stroke:#EF6C00,stroke-width:2px,color:#fff;
+    classDef output fill:#9C27B0,stroke:#6A1B9A,stroke-width:2px,color:#fff;
+
+    Start((News Ingestion)):::ingest --> Fetch[Fetch RSS Feeds]:::ingest
+    Fetch --> Embed[Generate Embeddings]:::ingest
+    Embed --> StoreDB[(Save to CockroachDB)]:::db
+
+    Trigger((User Requests Feed)):::agent --> Auth[Validate User]:::agent
+    Auth --> Profile[Retrieve Profile Vector]:::db
+    Profile --> SimSearch[Vector Similarity Search]:::db
+    
+    SimSearch --> EchoCheck{Is User in an Echo Chamber?}:::agent
+    
+    EchoCheck -- "Yes (Bias Detected)" --> FetchOp[Fetch Contrarian Viewpoints]:::agent
+    EchoCheck -- "No (Balanced)" --> Synthesize[Synthesize Regular Digest]:::agent
+    
+    FetchOp --> Blend[Blend Contrarian & Personalized Articles]:::agent
+    Blend --> Synthesize
+    
+    Synthesize --> Return((Return News Feed)):::output
+    Synthesize --> Memory[(Update Agent Memory)]:::db
+```
 
 ### Agent & AI Layer
 *   **Groq**: Lightning-fast LLM inference (Llama/Mixtral) used for agent reasoning, topic classification, and sentiment/bias analysis.
