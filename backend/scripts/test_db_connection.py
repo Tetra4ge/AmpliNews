@@ -19,7 +19,7 @@ def test_connection():
     try:
         # 1. Initialize DB and create pgvector extension
         init_db()
-        print("✅ Database connection successful and vector extension ensured.")
+        print("Database connection successful and vector extension ensured.")
         
         # 2. Test pgvector operations
         with engine.connect() as conn:
@@ -32,12 +32,12 @@ def test_connection():
             ).scalar()
             
             if result == 0.0:
-                print("✅ pgvector extension is working correctly! Vector distance computed successfully.")
+                print("pgvector extension is working correctly! Vector distance computed successfully.")
             else:
-                print(f"❌ pgvector test failed. Expected 0.0, got {result}")
+                print(f"pgvector test failed. Expected 0.0, got {result}")
                 
     except Exception as e:
-        print(f"❌ Connection or vector test failed: {e}")
+        print(f"Connection or vector test failed: {e}")
 
 if __name__ == "__main__":
     test_connection()
