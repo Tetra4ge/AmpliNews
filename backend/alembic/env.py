@@ -29,6 +29,11 @@ target_metadata = Base.metadata
 
 load_dotenv()
 database_url = os.environ.get("DATABASE_URL")
+from sqlalchemy.dialects.postgresql.base import PGDialect
+def _mock_get_server_version_info(self, connection):
+    return (13, 0, 0)
+PGDialect._get_server_version_info = _mock_get_server_version_info
+
 if not database_url:
     database_url = "postgresql+psycopg2://dummy:dummy@localhost:26257/defaultdb?sslmode=verify-full"
 elif database_url.startswith("postgresql://"):
