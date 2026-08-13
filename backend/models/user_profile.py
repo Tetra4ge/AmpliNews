@@ -12,7 +12,7 @@ class UserProfile(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # Used to find relevant articles for the user
-    interest_embedding = Column(Vector(1536))
+    interest_embedding = Column(Vector(384))
     
     # Baseline leaning: -1.0 (Extreme Left) to 1.0 (Extreme Right)
     baseline_political_leaning = Column(Float)

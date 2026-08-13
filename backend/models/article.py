@@ -14,8 +14,8 @@ class Article(Base):
     source = Column(String(100), nullable=False)
     published_date = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Tier 1 Hot Cache: 1536-dimensional vector for OpenAI/Groq embeddings
-    article_embedding = Column(Vector(1536))
+    # Tier 1 Hot Cache: 384-dimensional vector for HuggingFace all-MiniLM-L6-v2
+    article_embedding = Column(Vector(384))
     
     # HNSW Index for fast vector similarity search using cosine distance
     __table_args__ = (
@@ -23,7 +23,6 @@ class Article(Base):
             'ix_articles_embedding_hnsw',
             'article_embedding',
             postgresql_using='hnsw',
-            postgresql_with={'m': 16, 'ef_construction': 64},
             postgresql_ops={'article_embedding': 'vector_cosine_ops'}
         ),
     )
