@@ -7,8 +7,8 @@ import os
 load_dotenv()
 
 app = FastAPI(
-    title="Transformation Intelligence AI Engine",
-    description="Core AI analysis engine for breaking down monoliths into microservices.",
+    title="AmpliNews API",
+    description="Backend API for the AmpliNews Personalized News Digest Agent.",
     version="1.0.0"
 )
 

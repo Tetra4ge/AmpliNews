@@ -16,9 +16,9 @@ alembic==1.13.1
 
 # AI & Agent Orchestration (Groq + LangGraph)
 groq==0.4.2
-langchain-core==0.1.23
-langgraph==0.0.26
-langchain-groq==0.0.1
+langchain-core>=0.1.25
+langgraph>=0.0.26
+langchain-groq>=0.0.1
 
 # Authentication (Supabase JWT Validation)
 python-jose[cryptography]==3.3.0
