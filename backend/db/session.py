@@ -11,7 +11,13 @@ if not DATABASE_URL:
     # Use a dummy URL for now so that the code doesn't crash when running migrations without a URL
     DATABASE_URL = "postgresql://dummy:dummy@localhost:26257/defaultdb?sslmode=verify-full"
 
-# CockroachDB specifically needs postgresql+psycopg2 driver if using psycopg2
+from sqlalchemy.dialects.postgresql.base import PGDialect
+# Monkeypatch to avoid CockroachDB version parsing crash in SQLAlchemy 2.0
+def _mock_get_server_version_info(self, connection):
+    return (13, 0, 0)
+PGDialect._get_server_version_info = _mock_get_server_version_info
+
+# CockroachDB works with postgresql+psycopg2 driver using this patch
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
