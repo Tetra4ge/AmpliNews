@@ -31,3 +31,4 @@ boto3==1.34.40
 httpx==0.27.0
 feedparser==6.0.11
 beautifulsoup4==4.12.3
+requests==2.32.3
