@@ -27,5 +27,11 @@ class Settings(BaseSettings):
     # Embedding model (HuggingFace all-MiniLM-L6-v2, 384 dimensions)
     HF_API_KEY: str = os.environ.get("HF_API_KEY", "")
 
+    # News Ingestion (Tier 1 Cache - Phase 3)
+    NEWS_API_KEY: str = os.environ.get("NEWS_API_KEY", "")
+
+    # Static secret required to hit the manual admin ingestion trigger.
+    ADMIN_SECRET_KEY: str = os.environ.get("ADMIN_SECRET_KEY", "")
+
 
 settings = Settings()

@@ -13,11 +13,16 @@ class Article(Base):
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     source = Column(String(100), nullable=False)
+    url = Column(String(2048), nullable=False, unique=True)
     published_date = Column(DateTime(timezone=True), server_default=func.now())
-    
+
+    # SHA-256 hash of (normalized title + hour-rounded publish time + source),
+    # used to de-duplicate the same story reported by multiple outlets.
+    content_hash = Column(String(64), nullable=False, unique=True)
+
     # Tier 1 Hot Cache: 384-dimensional vector for HuggingFace all-MiniLM-L6-v2
     article_embedding = Column(Vector(384))
-    
+
     # HNSW Index for fast vector similarity search using cosine distance
     __table_args__ = (
         Index(
