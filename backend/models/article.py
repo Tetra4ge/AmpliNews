@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Text, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+# pyrefly: ignore [missing-import]
 from pgvector.sqlalchemy import Vector
 from .base import Base
 
