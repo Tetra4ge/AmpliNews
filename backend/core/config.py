@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Embedding model (HuggingFace all-MiniLM-L6-v2, 384 dimensions)
     HF_API_KEY: str = os.environ.get("HF_API_KEY", "")
 
+    # LLM & Agent Orchestration (Groq - Phase 4)
+    GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
+
     # News Ingestion (Tier 1 Cache - Phase 3)
     NEWS_API_KEY: str = os.environ.get("NEWS_API_KEY", "")
 

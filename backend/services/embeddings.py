@@ -1,34 +1,61 @@
-import os
-import requests
-from dotenv import load_dotenv
+"""Shared 384-dimensional embedding generation (all-MiniLM-L6-v2).
 
-load_dotenv()
+Uses a locally-loaded `sentence-transformers` model rather than HuggingFace's
+hosted Inference API: `api-inference.huggingface.co` (the endpoint this
+module originally called) has been decommissioned by HuggingFace and no
+longer resolves at all, which made every embedding silently fall back to a
+zero-vector. Running the model locally removes that external dependency and
+its associated latency/rate-limit/cost entirely - it also matches the
+Phase 4 spec's explicitly sanctioned "local embeddings" option.
 
-HF_API_KEY = os.environ.get("HF_API_KEY")
-# HuggingFace all-MiniLM-L6-v2 produces a 384-dimensional vector
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+Both user interest embeddings (Phase 2) and article embeddings (Phase 4)
+go through `generate_embedding()` so they live in the same vector space.
+"""
+from sentence_transformers import SentenceTransformer
+
+EMBEDDING_DIMENSIONS = 384
+_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+_model: SentenceTransformer | None = None
+
+
+def _get_model() -> SentenceTransformer:
+    global _model
+    if _model is None:
+        _model = SentenceTransformer(_MODEL_NAME)
+    return _model
+
+
+def generate_embedding(text: str) -> list[float]:
+    """
+    Generates a 384-dimensional vector for arbitrary text using a local
+    all-MiniLM-L6-v2 model.
+    """
+    try:
+        vector = _get_model().encode(text)
+        embedding = vector.tolist()
+
+        if len(embedding) != EMBEDDING_DIMENSIONS:
+            raise ValueError(f"Expected {EMBEDDING_DIMENSIONS} dimensions, got {len(embedding)}")
+
+        return embedding
+    except Exception as e:
+        print(f"Warning: Failed to generate embedding locally: {e}")
+        # Fallback to a zero-vector so callers never crash on a model hiccup.
+        return [0.0] * EMBEDDING_DIMENSIONS
+
 
 def generate_user_embedding(topics: list[str]) -> list[float]:
     """
-    Calls HuggingFace API to generate a 384-dimensional vector for the user's selected topics.
+    Generates a 384-dimensional vector for the user's selected topics.
     """
     prompt = f"A reader interested in: {', '.join(topics)}"
-    
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-    payload = {"inputs": prompt}
-    
-    try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        # The API returns a list of floats (the embedding)
-        embedding = response.json()
-        
-        # Verify dimension
-        if len(embedding) != 384:
-            raise ValueError(f"Expected 384 dimensions, got {len(embedding)}")
-            
-        return embedding
-    except Exception as e:
-        print(f"Warning: Failed to generate vector from HuggingFace API: {e}")
-        # Fallback to a zero-vector for testing if API fails
-        return [0.0] * 384
+    return generate_embedding(prompt)
+
+
+def generate_article_embedding(title: str, content: str) -> list[float]:
+    """
+    Generates a 384-dimensional vector for an article's title + content,
+    per the Phase 4 lazy embedding generation spec.
+    """
+    return generate_embedding(f"{title}. {content}")

@@ -31,7 +31,7 @@ def upgrade() -> None:
     sa.Column('article_embedding', pgvector.sqlalchemy.Vector(dim=384), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_articles_embedding_hnsw', 'articles', ['article_embedding'], unique=False, postgresql_using='hnsw', postgresql_ops={'article_embedding': 'vector_cosine_ops'})
+    op.create_index('ix_articles_embedding_hnsw', 'articles', ['article_embedding'], unique=False, postgresql_using='hnsw')
     op.create_table('perspective_pairs',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('article_id_a', sa.UUID(), nullable=False),

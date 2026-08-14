@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.config import settings
 from db.session import get_db
+from services.enrichment import run_enrichment
 from services.ingestion import fetch_all_categories, run_ingestion
 
 router = APIRouter()
@@ -34,4 +35,14 @@ async def trigger_ingestion(db: Session = Depends(get_db)):
     """
     fetched_articles = await fetch_all_categories()
     summary = run_ingestion(db, fetched_articles)
+    return {"status": "success", **summary}
+
+
+@router.post("/enrich", dependencies=[Depends(verify_admin_secret)])
+async def trigger_enrichment(db: Session = Depends(get_db)):
+    """Manually triggers Phase 4 lazy embedding + bias/sentiment enrichment.
+
+    Processes up to 50 articles still missing an `article_embedding`.
+    """
+    summary = await run_enrichment(db)
     return {"status": "success", **summary}
