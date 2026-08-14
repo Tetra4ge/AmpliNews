@@ -19,6 +19,13 @@ from models.article import Article
 
 NEWS_API_BASE_URL = "https://newsapi.org/v2/top-headlines"
 
+# Must match models/article.py column widths - NewsAPI regularly returns
+# titles/source names longer than these, which would otherwise blow up the
+# insert with a StringDataRightTruncation error.
+TITLE_MAX_LENGTH = 255
+SOURCE_MAX_LENGTH = 100
+URL_MAX_LENGTH = 2048
+
 # Static category list per the Phase 3 spec.
 CATEGORIES = ["politics", "technology", "business", "health", "science"]
 ARTICLES_PER_CATEGORY = 20
@@ -83,12 +90,14 @@ async def _fetch_category(client: httpx.AsyncClient, category: str) -> List[Dict
         source_name = ((item.get("source") or {}).get("name") or "Unknown").strip()
         published_date = _parse_published_date(item.get("publishedAt"))
 
+        # Truncate to fit the column widths before the hash is computed
+        # downstream, so the hash matches what's actually stored.
         normalized.append(
             {
-                "title": title,
+                "title": title[:TITLE_MAX_LENGTH],
                 "content": content or title,
-                "source": source_name,
-                "url": url,
+                "source": source_name[:SOURCE_MAX_LENGTH],
+                "url": url[:URL_MAX_LENGTH],
                 "published_date": published_date,
                 "category": category,
             }
