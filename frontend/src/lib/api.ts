@@ -40,3 +40,19 @@ export function fetchUserProfile() {
 export function syncUser(payload: UserSyncRequest) {
   return api.post('/api/auth/sync', payload);
 }
+
+export interface Article {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  topic: string;
+  political_leaning: number;
+  url: string;
+  published_at: string;
+  similarity?: number;
+}
+
+export function fetchFeed() {
+  return api.get<Article[]>('/api/articles/feed');
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowUpRight, ArrowLeft } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,8 +35,18 @@ export default function Login() {
     setError(null);
 
     if (mode === 'signup') {
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        setStatus('error');
+        return;
+      }
       if (password !== confirmPassword) {
         setError('Passwords do not match');
+        setStatus('error');
+        return;
+      }
+      if (name.trim().length < 2) {
+        setError('Please enter a valid full name');
         setStatus('error');
         return;
       }
