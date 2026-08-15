@@ -6,6 +6,7 @@ import Hero from '../components/landing/Hero';
 import Features from '../components/landing/Features';
 import HowItWorks from '../components/landing/HowItWorks';
 import CallToAction from '../components/landing/CallToAction';
+import Footer from '../components/landing/Footer';
 
 type Theme = 'light' | 'dark';
 
@@ -55,7 +56,7 @@ export default function LandingPage() {
           <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full border editorial-rule bg-transparent transition-transform hover:scale-105" aria-label="Toggle color theme">
             {theme === 'light' ? <Moon size={15} strokeWidth={1.7} /> : <Sun size={16} strokeWidth={1.7} />}
           </button>
-          <Link to="/login" className="hidden items-center gap-2 bg-[var(--ink)] px-4 py-2.5 editorial-mono text-[10px] font-medium uppercase tracking-[.1em] text-[var(--paper)] transition-transform hover:-translate-y-0.5 sm:flex">Start reading <ArrowUpRight size={13} /></Link>
+          <Link to="/login" className="hidden items-center gap-2 px-4 py-2.5 editorial-mono text-[10px] font-medium uppercase tracking-[.1em] transition-transform hover:-translate-y-0.5 sm:flex" style={{ backgroundColor: 'var(--ink)', color: 'var(--paper)' }}>Start reading <ArrowUpRight size={13} /></Link>
           <button onClick={() => setMenuOpen(!menuOpen)} className="grid h-9 w-9 cursor-pointer place-items-center border editorial-rule bg-transparent md:hidden" aria-label="Open menu">{menuOpen ? <X size={18} /> : <Menu size={19} />}</button>
         </div>
       </header>
@@ -67,10 +68,7 @@ export default function LandingPage() {
       <HowItWorks />
       <CallToAction />
 
-      <footer className="landing-shell flex flex-col gap-5 border-t editorial-rule py-8 text-[10px] uppercase tracking-[.12em] sm:flex-row sm:items-center sm:justify-between editorial-mono" style={{ color: 'var(--muted)' }}>
-        <p>© 2026 AmpliNews, made for curious minds.</p>
-        <div className="flex gap-5"><a href="#the-edition">Editorial standards</a><Link to="/login">Sign in</Link><Link to="/dashboard">Dashboard</Link></div>
-      </footer>
+      <Footer />
     </main>
   );
 }

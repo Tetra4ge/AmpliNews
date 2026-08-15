@@ -76,3 +76,19 @@ button, input { font: inherit; }
 }
 
 @media (max-width: 640px) { .landing-shell { padding: 0 18px; } }
+
+/* Custom Editorial Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(115, 110, 100, 0.4);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(115, 110, 100, 0.7);
+}
