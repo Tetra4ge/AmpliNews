@@ -53,6 +53,10 @@ export interface Article {
   similarity?: number;
 }
 
+export interface FeedResponse {
+  articles: any[];
+}
+
 export function fetchFeed() {
-  return api.get<Article[]>('/api/articles/feed');
+  return api.get<FeedResponse>('/api/articles/feed');
 }

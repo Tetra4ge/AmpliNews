@@ -19,10 +19,13 @@ export default function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [debugLog, setDebugLog] = useState<string>('Starting load...');
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setDebugLog('Checking session...');
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         navigate('/login', { replace: true });
@@ -30,25 +33,43 @@ export default function Dashboard() {
       }
 
       try {
+        setDebugLog('Fetching user profile...');
         const res = await fetchUserProfile();
         if (!cancelled) {
+          setDebugLog('Profile fetched. Setting ready...');
           setProfile(res.data);
           setView('ready');
           
           // Fetch feed immediately after profile is ready
           try {
             const feedRes = await fetchFeed();
-            if (!cancelled) setFeed(feedRes.data);
+            if (!cancelled) {
+              const rawArticles = feedRes.data.articles || [];
+              const mappedArticles: Article[] = rawArticles.map((a: any) => ({
+                id: a.id,
+                title: a.title,
+                summary: a.content ? (a.content.substring(0, 150) + '...') : '',
+                content: a.content,
+                topic: a.metadata?.topic || 'General',
+                political_leaning: a.metadata?.bias_score || 0,
+                url: a.url,
+                published_at: a.published_date,
+                similarity: a.similarity
+              }));
+              setFeed(mappedArticles);
+            }
           } catch (feedErr) {
             console.error("Could not fetch feed", feedErr);
           }
         }
       } catch (err: any) {
         if (cancelled) return;
+        setDebugLog(`Error occurred: ${err.message}`);
         if (err?.response?.status === 404) {
           setView('onboarding');
         } else {
-          setError('Could not reach AmpliNews API.');
+          const detail = err?.response?.data?.detail || err.message;
+          setError(`API Error: ${detail}`);
           setView('error');
         }
       }
@@ -79,7 +100,19 @@ export default function Dashboard() {
       setView('ready');
       
       const feedRes = await fetchFeed();
-      setFeed(feedRes.data);
+      const rawArticles = feedRes.data.articles || [];
+      const mappedArticles: Article[] = rawArticles.map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        summary: a.content ? (a.content.substring(0, 150) + '...') : '',
+        content: a.content,
+        topic: a.metadata?.topic || 'General',
+        political_leaning: a.metadata?.bias_score || 0,
+        url: a.url,
+        published_at: a.published_date,
+        similarity: a.similarity
+      }));
+      setFeed(mappedArticles);
     } catch {
       setError('Failed to save your preferences. Please try again.');
     } finally {
@@ -94,8 +127,9 @@ export default function Dashboard() {
 
   if (view === 'loading') {
     return (
-      <main className="landing-page paper-grain flex min-h-screen items-center justify-center">
+      <main className="landing-page paper-grain flex min-h-screen items-center justify-center flex-col gap-4">
         <p className="editorial-mono text-xs uppercase tracking-widest text-[var(--muted)]">Loading your edition...</p>
+        <p className="editorial-mono text-[10px] text-[var(--accent)]">{debugLog}</p>
       </main>
     );
   }
