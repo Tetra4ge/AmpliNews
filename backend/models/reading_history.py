@@ -12,6 +12,7 @@ class ReadingHistory(Base):
     article_id = Column(UUID(as_uuid=True), ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
     
     read_duration_seconds = Column(Integer)
-    liked = Column(Boolean)
+    liked = Column(Boolean, default=False)
+    rejected_biased = Column(Boolean, default=False)
     
     timestamp = Column(DateTime(timezone=True), server_default=func.now())

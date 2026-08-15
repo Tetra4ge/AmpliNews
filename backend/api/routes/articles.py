@@ -1,6 +1,7 @@
+import uuid
 import math
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 
@@ -8,8 +9,12 @@ from api.deps import get_db, get_current_user
 from models.article import Article
 from models.user_profile import UserProfile
 from models.article_metadata import ArticleMetadata
+from models.reading_history import ReadingHistory
+from schemas.reading_history import ReadPayload, ReadResponse
+from services.vector_service import shift_user_vector_task
 
 router = APIRouter()
+
 
 def get_bias_label(score: float) -> str:
     if score < -0.3:
@@ -74,6 +79,44 @@ def get_personalized_feed(
         })
         
     return {"feed": feed}
+
+
+@router.post("/read", response_model=ReadResponse)
+def log_article_read(
+    payload: ReadPayload,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Logs article read interaction into reading_history table
+    and schedules background vector shift for user profile.
+    """
+    user_uuid = uuid.UUID(current_user_id) if isinstance(current_user_id, str) else current_user_id
+
+    # 1. Log event to reading_history table
+    history_entry = ReadingHistory(
+        user_id=user_uuid,
+        article_id=payload.article_id,
+        read_duration_seconds=payload.read_duration_seconds,
+        liked=payload.liked,
+        rejected_biased=payload.rejected_biased
+    )
+    db.add(history_entry)
+    db.commit()
+
+    # 2. Add background task for dynamic vector shift
+    background_tasks.add_task(
+        shift_user_vector_task,
+        user_id=user_uuid,
+        article_id=payload.article_id,
+        read_duration_seconds=payload.read_duration_seconds,
+        liked=payload.liked,
+        rejected_biased=payload.rejected_biased
+    )
+
+    return ReadResponse(status="logged", message="Interaction logged successfully")
+
 
 @router.get("/{article_id}")
 def get_article(
