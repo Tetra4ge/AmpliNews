@@ -44,19 +44,7 @@ export default function Dashboard() {
           try {
             const feedRes = await fetchFeed();
             if (!cancelled) {
-              const rawArticles = feedRes.data.articles || [];
-              const mappedArticles: Article[] = rawArticles.map((a: any) => ({
-                id: a.id,
-                title: a.title,
-                summary: a.content ? (a.content.substring(0, 150) + '...') : '',
-                content: a.content,
-                topic: a.metadata?.topic || 'General',
-                political_leaning: a.metadata?.bias_score || 0,
-                url: a.url,
-                published_at: a.published_date,
-                similarity: a.similarity
-              }));
-              setFeed(mappedArticles);
+              setFeed(feedRes.data.feed || []);
             }
           } catch (feedErr) {
             console.error("Could not fetch feed", feedErr);
@@ -100,19 +88,7 @@ export default function Dashboard() {
       setView('ready');
       
       const feedRes = await fetchFeed();
-      const rawArticles = feedRes.data.articles || [];
-      const mappedArticles: Article[] = rawArticles.map((a: any) => ({
-        id: a.id,
-        title: a.title,
-        summary: a.content ? (a.content.substring(0, 150) + '...') : '',
-        content: a.content,
-        topic: a.metadata?.topic || 'General',
-        political_leaning: a.metadata?.bias_score || 0,
-        url: a.url,
-        published_at: a.published_date,
-        similarity: a.similarity
-      }));
-      setFeed(mappedArticles);
+      setFeed(feedRes.data.feed || []);
     } catch {
       setError('Failed to save your preferences. Please try again.');
     } finally {
@@ -266,28 +242,30 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {feed.map((article) => (
-              <article key={article.id} className="group relative flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]">
+              <article key={article.article_id} className="group relative flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]">
                 <div>
                   <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3 editorial-mono text-[8px] uppercase tracking-[.15em] text-[var(--muted)]">
-                    <span>{article.topic}</span>
+                    <span>{article.source}</span>
                     <Bookmark size={12} className="transition-colors group-hover:text-[var(--accent)]" />
                   </div>
-                  <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight">
-                    {article.title}
-                  </h3>
+                  <a href={article.url} target="_blank" rel="noopener noreferrer">
+                    <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight hover:text-[var(--accent)] transition-colors">
+                      {article.title}
+                    </h3>
+                  </a>
                   <p className="text-sm leading-relaxed text-[var(--muted)] line-clamp-4">
-                    {article.summary}
+                    {article.reasoning}
                   </p>
                 </div>
                 
                 <div className="mt-6 border-t editorial-rule pt-4 flex items-center justify-between">
                   <div className="editorial-mono text-[8px] uppercase tracking-widest">
                     <span className="text-[var(--muted)]">Leaning: </span>
-                    <span className="font-bold text-[var(--ink)]">{formatLeaning(article.political_leaning)}</span>
+                    <span className="font-bold text-[var(--ink)]">{article.bias}</span>
                   </div>
-                  {article.similarity !== undefined && (
+                  {article.match_percentage !== undefined && (
                     <div className="editorial-mono text-[8px] uppercase tracking-widest text-[var(--accent)]">
-                      Match {(100 - (article.similarity * 100)).toFixed(1)}%
+                      Match {article.match_percentage}%
                     </div>
                   )}
                 </div>

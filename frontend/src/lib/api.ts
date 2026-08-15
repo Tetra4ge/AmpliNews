@@ -42,19 +42,20 @@ export function syncUser(payload: UserSyncRequest) {
 }
 
 export interface Article {
-  id: string;
+  article_id: string;
   title: string;
-  summary: string;
-  content: string;
-  topic: string;
-  political_leaning: number;
+  source: string;
   url: string;
-  published_at: string;
-  similarity?: number;
+  published_date: string;
+  match_percentage: number;
+  bias: string;
+  bias_score: number;
+  credibility: number;
+  reasoning: string;
 }
 
 export interface FeedResponse {
-  articles: any[];
+  feed: Article[];
 }
 
 export function fetchFeed() {
