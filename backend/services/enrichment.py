@@ -27,7 +27,8 @@ BATCH_SIZE = 50
 # for the same just-exhausted budget). Capping concurrency lets requests
 # land staggered enough for the rate limit to actually replenish between
 # them.
-MAX_CONCURRENT_ANALYSES = 5
+MAX_CONCURRENT_ANALYSES = 1
+# MAX_CONCURRENT_ANALYSES = 5
 
 
 def _analyze_and_embed(article: Article) -> Optional[Tuple[ArticleAnalysis, list]]:

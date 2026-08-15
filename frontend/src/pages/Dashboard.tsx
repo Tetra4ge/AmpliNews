@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { fetchUserProfile, syncUser, type UserProfileResponse } from '../lib/api';
+import { AnimatePresence, motion } from 'framer-motion';
+import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, type UserProfileResponse, type Article } from '../lib/api';
+import { ArrowUpRight, LogOut, Compass, Bookmark, X, Heart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
 
@@ -11,15 +13,25 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [view, setView] = useState<ViewState>('loading');
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const [feed, setFeed] = useState<Article[]>([]);
+  
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [leaning, setLeaning] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [debugLog, setDebugLog] = useState<string>('Starting load...');
+
+  // Reading View State
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [fullArticle, setFullArticle] = useState<any | null>(null);
+  const [loadingArticle, setLoadingArticle] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setDebugLog('Checking session...');
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         navigate('/login', { replace: true });
@@ -27,18 +39,31 @@ export default function Dashboard() {
       }
 
       try {
+        setDebugLog('Fetching user profile...');
         const res = await fetchUserProfile();
         if (!cancelled) {
+          setDebugLog('Profile fetched. Setting ready...');
           setProfile(res.data);
           setView('ready');
+          
+          // Fetch feed immediately after profile is ready
+          try {
+            const feedRes = await fetchFeed();
+            if (!cancelled) {
+              setFeed(feedRes.data.feed || []);
+            }
+          } catch (feedErr) {
+            console.error("Could not fetch feed", feedErr);
+          }
         }
       } catch (err: any) {
         if (cancelled) return;
-        // No profile yet -> first-time login, show interest onboarding (docs/flow.md Step 1).
+        setDebugLog(`Error occurred: ${err.message}`);
         if (err?.response?.status === 404) {
           setView('onboarding');
         } else {
-          setError('Could not reach AmpliNews API.');
+          const detail = err?.response?.data?.detail || err.message;
+          setError(`API Error: ${detail}`);
           setView('error');
         }
       }
@@ -67,6 +92,9 @@ export default function Dashboard() {
       const res = await fetchUserProfile();
       setProfile(res.data);
       setView('ready');
+      
+      const feedRes = await fetchFeed();
+      setFeed(feedRes.data.feed || []);
     } catch {
       setError('Failed to save your preferences. Please try again.');
     } finally {
@@ -79,42 +107,64 @@ export default function Dashboard() {
     navigate('/login', { replace: true });
   }
 
+  async function handleArticleClick(id: string) {
+    setSelectedArticleId(id);
+    setLoadingArticle(true);
+    setFullArticle(null);
+    try {
+      const res = await fetchArticleById(id);
+      setFullArticle(res.data);
+    } catch (err) {
+      console.error("Failed to fetch full article", err);
+    } finally {
+      setLoadingArticle(false);
+    }
+  }
+
+  function closeReadingView() {
+    setSelectedArticleId(null);
+    setFullArticle(null);
+  }
+
   if (view === 'loading') {
     return (
-      <main className="min-h-screen bg-[#0a0a0a] text-neutral-400 flex items-center justify-center">
-        <p className="text-sm">Loading...</p>
+      <main className="landing-page paper-grain flex min-h-screen items-center justify-center flex-col gap-4">
+        <p className="editorial-mono text-xs uppercase tracking-widest text-[var(--muted)]">Loading your edition...</p>
+        <p className="editorial-mono text-[10px] text-[var(--accent)]">{debugLog}</p>
       </main>
     );
   }
 
   if (view === 'error') {
     return (
-      <main className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex items-center justify-center">
-        <p className="text-sm text-red-400">{error}</p>
+      <main className="landing-page paper-grain flex min-h-screen items-center justify-center">
+        <p className="editorial-mono text-xs font-bold uppercase tracking-widest text-[var(--accent)]">{error}</p>
       </main>
     );
   }
 
   if (view === 'onboarding') {
     return (
-      <main className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex items-center justify-center px-4">
+      <main className="landing-page paper-grain flex min-h-screen items-center justify-center px-4 py-12">
         <form
           onSubmit={handleOnboardingSubmit}
-          className="w-full max-w-md border border-[#222] bg-black/40 p-8 space-y-6"
+          className="w-full max-w-[540px] border border-[var(--ink)] bg-[var(--card)] p-6 shadow-[8px_8px_0_var(--accent)] backdrop-blur-md sm:p-10"
         >
-          <div>
-            <h1 className="font-logo text-xl mb-1">Let's personalize your news</h1>
-            <p className="text-sm text-neutral-500">What interests you?</p>
+          <div className="mb-8 text-center">
+            <h1 className="editorial-serif text-3xl font-black tracking-[-.05em] sm:text-4xl">Curate your perspective.</h1>
+            <p className="editorial-mono mt-3 text-[10px] uppercase tracking-[.1em]" style={{ color: 'var(--muted)' }}>
+              Select topics you care about to build your initial AI profile.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {TOPICS.map((topic) => (
               <label
                 key={topic}
-                className={`border px-3 py-2 text-sm cursor-pointer select-none ${
+                className={`flex cursor-pointer select-none items-center justify-center border border-[var(--rule)] px-3 py-3 text-center transition-colors ${
                   selectedTopics.includes(topic)
-                    ? 'border-neutral-200 bg-neutral-100 text-black'
-                    : 'border-[#333] text-neutral-300'
+                    ? 'border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]'
+                    : 'bg-transparent text-[var(--ink)] hover:bg-[var(--rule)]'
                 }`}
               >
                 <input
@@ -123,16 +173,16 @@ export default function Dashboard() {
                   checked={selectedTopics.includes(topic)}
                   onChange={() => toggleTopic(topic)}
                 />
-                {topic}
+                <span className="editorial-mono text-[10px] font-medium uppercase tracking-widest">{topic}</span>
               </label>
             ))}
           </div>
 
-          <div>
-            <label htmlFor="leaning" className="block text-xs text-neutral-500 mb-2">
-              Political leaning (optional): {leaning.toFixed(1)}
-              <span className="ml-2 text-neutral-600">
-                {leaning <= -0.34 ? 'Left-leaning' : leaning >= 0.34 ? 'Right-leaning' : 'Center'}
+          <div className="mb-8 border-t border-[var(--rule)] pt-6">
+            <label htmlFor="leaning" className="mb-4 flex items-center justify-between editorial-mono text-[9px] uppercase tracking-[.1em] text-[var(--ink)]">
+              <span>Political baseline (optional)</span>
+              <span className="font-bold">
+                {leaning <= -0.34 ? 'Left' : leaning >= 0.34 ? 'Right' : 'Center'} ({leaning.toFixed(1)})
               </span>
             </label>
             <input
@@ -143,18 +193,25 @@ export default function Dashboard() {
               step={0.1}
               value={leaning}
               onChange={(e) => setLeaning(Number(e.target.value))}
-              className="w-full"
+              className="w-full cursor-pointer accent-[var(--ink)]"
             />
+            <div className="mt-2 flex justify-between editorial-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+              <span>Left</span>
+              <span>Center</span>
+              <span>Right</span>
+            </div>
           </div>
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="mb-4 editorial-mono text-[9px] font-semibold text-[var(--accent)]">{error}</p>}
 
           <button
             type="submit"
             disabled={selectedTopics.length === 0 || submitting}
-            className="w-full bg-neutral-100 text-black py-2 text-sm font-semibold disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 px-6 py-4 editorial-mono text-[11px] font-medium uppercase tracking-[.1em] transition-transform hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
+            style={{ backgroundColor: 'var(--ink)', color: 'var(--paper)' }}
           >
-            {submitting ? 'Saving...' : 'Start reading'}
+            {submitting ? 'Generating AI Profile...' : 'Build my edition'}
+            {submitting ? null : <ArrowUpRight size={15} />}
           </button>
         </form>
       </main>
@@ -162,37 +219,205 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-neutral-200 px-4 py-10">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="font-logo text-xl">AmpliNews</h1>
-          <button onClick={handleSignOut} className="text-xs text-neutral-500 hover:text-neutral-200">
-            Sign out
+    <main className="landing-page paper-grain min-h-screen pb-24">
+      <header className="border-b editorial-rule sticky top-0 z-50 bg-[var(--paper)]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <Link to="/" className="editorial-serif text-2xl font-black tracking-[-.08em]">
+            ampli<span style={{ color: 'var(--accent)' }}>.</span>news
+          </Link>
+          <button 
+            onClick={handleSignOut} 
+            className="flex items-center gap-2 editorial-mono text-[9px] font-medium uppercase tracking-[.1em] text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+          >
+            Sign out <LogOut size={13} />
           </button>
         </div>
+      </header>
 
-        <div className="grid grid-cols-3 gap-4">
-          <Stat label="Articles Read" value={profile?.total_articles_read ?? 0} />
-          <Stat label="Top Topic" value={profile?.most_read_topic ?? '—'} />
-          <Stat
-            label="Baseline Leaning"
-            value={formatLeaning(profile?.baseline_political_leaning ?? 0)}
-          />
+      <div className="mx-auto max-w-6xl px-6 pt-12">
+        <div className="mb-12 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <p className="editorial-label mb-3">Your Reader Profile</p>
+            <h1 className="editorial-serif text-4xl font-bold tracking-[-.04em] sm:text-5xl">The Daily Digest.</h1>
+          </div>
+          <div className="flex w-full overflow-x-auto divide-x editorial-rule border border-[var(--rule)] bg-[var(--card)] p-4 shadow-sm backdrop-blur-sm md:w-auto">
+            <Stat label="Articles Read" value={profile?.total_articles_read ?? 0} />
+            <Stat label="Top Topic" value={profile?.most_read_topic ?? '—'} />
+            <div className="px-5 first:pl-2 last:pr-2 min-w-[200px]">
+              <p className="editorial-mono mb-2 text-[8px] uppercase tracking-widest text-[var(--muted)] flex justify-between">
+                <span>Left</span>
+                <span className="font-bold text-[var(--ink)]">{formatLeaning(profile?.baseline_political_leaning ?? 0)}</span>
+                <span>Right</span>
+              </p>
+              <div className="h-1.5 w-full bg-[var(--rule)] rounded-full overflow-hidden relative">
+                <div 
+                  className="absolute top-0 h-full bg-[var(--accent)] transition-all duration-1000"
+                  style={{ 
+                    left: '50%', 
+                    width: `${Math.abs((profile?.baseline_political_leaning ?? 0) * 50)}%`,
+                    transform: (profile?.baseline_political_leaning ?? 0) < 0 ? 'translateX(-100%)' : 'none'
+                  }}
+                />
+                <div className="absolute top-0 left-1/2 w-px h-full bg-[var(--ink)]/30 -translate-x-1/2" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <p className="mt-8 text-sm text-neutral-500">
-          Your personalized feed is being built. Check back soon.
-        </p>
+        <div className="mb-8 flex items-center justify-between border-b editorial-rule pb-4">
+          <h2 className="editorial-serif text-2xl font-bold tracking-tight">Curated for you</h2>
+          <span className="editorial-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+            Powered by pgvector
+          </span>
+        </div>
+
+        {feed.length === 0 ? (
+          <div className="flex min-h-[300px] flex-col items-center justify-center border border-dashed border-[var(--rule)] p-8 text-center">
+             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+               <Compass size={24} />
+             </div>
+             <p className="editorial-serif text-xl font-medium">Scanning the globe...</p>
+             <p className="editorial-mono mt-3 max-w-sm text-[10px] uppercase tracking-widest text-[var(--muted)]">
+               Our AI is analyzing thousands of articles to match your vector embedding.
+             </p>
+          </div>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {feed.map((article) => (
+              <article 
+                key={article.article_id} 
+                onClick={() => handleArticleClick(article.article_id)}
+                className="group relative cursor-pointer flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]"
+              >
+                <div>
+                  <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3 editorial-mono text-[8px] uppercase tracking-[.15em] text-[var(--muted)]">
+                    <span>{article.source}</span>
+                    <Bookmark size={12} className="transition-colors group-hover:text-[var(--accent)]" />
+                  </div>
+                  <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight group-hover:text-[var(--accent)] transition-colors">
+                    {article.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-[var(--muted)] line-clamp-4">
+                    {article.reasoning}
+                  </p>
+                </div>
+                
+                <div className="mt-6 border-t editorial-rule pt-4 flex items-center justify-between">
+                  <div className="editorial-mono text-[8px] uppercase tracking-widest">
+                    <span className="text-[var(--muted)]">Leaning: </span>
+                    <span className="font-bold text-[var(--ink)]">{article.bias}</span>
+                  </div>
+                  {article.match_percentage !== undefined && (
+                    <div className="editorial-mono text-[8px] uppercase tracking-widest text-[var(--accent)]">
+                      Match {article.match_percentage}%
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
+
+      <AnimatePresence>
+        {selectedArticleId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-[var(--ink)]/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative flex h-full max-h-[90vh] w-full max-w-4xl flex-col bg-[var(--paper)] shadow-[12px_12px_0_var(--accent)]"
+            >
+              <div className="flex items-center justify-between border-b editorial-rule p-4 sm:p-6 bg-[var(--paper-deep)]">
+                <div className="editorial-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                  {fullArticle ? fullArticle.metadata?.topic : 'Loading...'}
+                </div>
+                <button onClick={closeReadingView} className="p-2 transition-colors hover:text-[var(--accent)]">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 sm:p-10">
+                {loadingArticle ? (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="editorial-mono animate-pulse uppercase tracking-widest text-[var(--accent)]">
+                      Retrieving full text...
+                    </p>
+                  </div>
+                ) : fullArticle ? (
+                  <div className="mx-auto max-w-2xl">
+                    <div className="mb-6 flex items-center gap-3 editorial-mono text-[9px] uppercase tracking-[.15em] text-[var(--accent)]">
+                      <span>{fullArticle.source}</span>
+                      <span>•</span>
+                      <span>{fullArticle.metadata?.bias}</span>
+                    </div>
+                    
+                    <h1 className="editorial-serif mb-8 text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+                      {fullArticle.title}
+                    </h1>
+                    
+                    <div className="prose prose-stone prose-lg max-w-none editorial-serif text-[var(--ink)] leading-relaxed">
+                      {fullArticle.content.split('\n').map((paragraph: string, idx: number) => (
+                        <p key={idx} className="mb-6">{paragraph}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="editorial-mono text-red-500">Failed to load article.</p>
+                  </div>
+                )}
+              </div>
+
+              {fullArticle && !loadingArticle && (
+                <div className="border-t editorial-rule bg-[var(--paper-deep)] p-4 sm:p-6">
+                  <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-4">
+                    <a 
+                      href={fullArticle.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="editorial-mono text-[10px] uppercase tracking-widest underline decoration-[var(--rule)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
+                    >
+                      Read on Original Site
+                    </a>
+                    
+                    <div className="flex items-center gap-3">
+                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                        <Heart size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Like</span>
+                      </button>
+                      
+                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                        <AlertTriangle size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Biased</span>
+                      </button>
+                      
+                      <button className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)]">
+                        <RefreshCw size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Other Side</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="border border-[#222] p-4">
-      <p className="text-xs text-neutral-500 mb-1">{label}</p>
-      <p className="text-lg">{value}</p>
+    <div className="px-5 first:pl-2 last:pr-2 whitespace-nowrap">
+      <p className="editorial-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">{label}</p>
+      <p className="editorial-serif mt-1 text-xl font-semibold">{value}</p>
     </div>
   );
 }

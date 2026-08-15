@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     # News Ingestion (Tier 1 Cache - Phase 3)
     NEWS_API_KEY: str = os.environ.get("NEWS_API_KEY", "")
 
+    # AWS Infrastructure (S3, Lambda, EventBridge, SES)
+    AWS_ACCESS_KEY_ID: str = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY: str = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    AWS_REGION: str = os.environ.get("AWS_REGION", "us-east-1")
+    AWS_S3_BUCKET_NAME: str = os.environ.get("AWS_S3_BUCKET_NAME", "")
+    AWS_SES_SENDER_EMAIL: str = os.environ.get("AWS_SES_SENDER_EMAIL", "")
+
     # Static secret required to hit the manual admin ingestion trigger.
     ADMIN_SECRET_KEY: str = os.environ.get("ADMIN_SECRET_KEY", "")
 

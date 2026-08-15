@@ -1,36 +1,88 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'DM Sans', Arial, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
 }
 
-body {
-  font-family: 'Space Mono', monospace;
+:root {
+  font-family: 'DM Sans', Arial, sans-serif;
+  color: #1d1b17;
+  background: #f4f0e7;
 }
 
-.font-logo {
-  font-family: 'Silkscreen', cursive;
-  letter-spacing: 0.06em;
+* { box-sizing: border-box; }
+html { scroll-behavior: auto; }
+body { margin: 0; min-width: 320px; }
+button, input { font: inherit; }
+
+.font-logo { font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.06em; }
+
+.landing-page {
+  --paper: #f4f0e7;
+  --paper-deep: #eae4d8;
+  --ink: #1d1b17;
+  --muted: #736e64;
+  --rule: rgba(29, 27, 23, .18);
+  --accent: #be3829;
+  --accent-deep: #8f241b;
+  --card: rgba(255, 253, 248, .55);
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper);
+  transition: background .35s ease, color .35s ease;
 }
 
-/* Custom Hacker Terminal Scrollbar */
+.landing-page[data-theme='dark'] {
+  --paper: #171714;
+  --paper-deep: #211f1a;
+  --ink: #f3ede2;
+  --muted: #aea699;
+  --rule: rgba(243, 237, 226, .17);
+  --accent: #ef705e;
+  --accent-deep: #ffad9f;
+  --card: rgba(42, 40, 34, .72);
+  background: var(--paper);
+}
+
+.landing-page ::selection { color: #fffaf0; background: var(--accent); }
+.landing-page a { color: inherit; text-decoration: none; }
+.landing-shell { max-width: 1420px; margin: 0 auto; padding: 0 30px; }
+.editorial-serif { font-family: 'Playfair Display', Georgia, serif; }
+.editorial-mono { font-family: 'DM Mono', monospace; }
+.editorial-rule { border-color: var(--rule); }
+.editorial-label { color: var(--accent); font: 500 .69rem/1 'DM Mono', monospace; letter-spacing: .13em; text-transform: uppercase; }
+.paper-grain { position: relative; }
+.paper-grain::before { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E"); content: ''; inset: 0; opacity: .18; pointer-events: none; position: absolute; z-index: 0; }
+.paper-grain > * { position: relative; z-index: 1; }
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ticker { to { transform: translateX(-50%); } }
+@keyframes float { 50% { transform: translateY(-8px) rotate(-1deg); } }
+.reveal { animation: rise-in .8s cubic-bezier(.22, 1, .36, 1) both; }
+.delay-1 { animation-delay: .12s; } .delay-2 { animation-delay: .22s; } .delay-3 { animation-delay: .32s; }
+.ticker-track { animation: ticker 24s linear infinite; width: max-content; }
+.floating-note { animation: float 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .ticker-track, .floating-note { animation: none !important; }
+}
+
+@media (max-width: 640px) { .landing-shell { padding: 0 18px; } }
+
+/* Custom Editorial Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
-  border-left: 1px solid #222;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border: 1px solid #222;
-  border-radius: 0px;
+  background: rgba(115, 110, 100, 0.4);
+  border-radius: 10px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(115, 110, 100, 0.7);
 }

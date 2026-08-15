@@ -40,3 +40,28 @@ export function fetchUserProfile() {
 export function syncUser(payload: UserSyncRequest) {
   return api.post('/api/auth/sync', payload);
 }
+
+export interface Article {
+  article_id: string;
+  title: string;
+  source: string;
+  url: string;
+  published_date: string;
+  match_percentage: number;
+  bias: string;
+  bias_score: number;
+  credibility: number;
+  reasoning: string;
+}
+
+export interface FeedResponse {
+  feed: Article[];
+}
+
+export function fetchFeed() {
+  return api.get<FeedResponse>('/api/articles/feed');
+}
+
+export function fetchArticleById(id: string) {
+  return api.get(`/api/articles/${id}`);
+}

@@ -11,7 +11,8 @@ Social media algorithms optimize for engagement by feeding users content that al
   <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangGraph" />
   <img src="https://img.shields.io/badge/CockroachDB-6933FF?style=for-the-badge&logo=cockroachlabs&logoColor=white" alt="CockroachDB" />
-  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector" />
+  <img src="https://img.shields.io/badge/all--MiniLM--L6--v2-F9AB00?style=for-the-badge&logo=huggingface&logoColor=white" alt="all-MiniLM-L6-v2" />
   <img src="https://img.shields.io/badge/AWS_Lambda-%23FF9900.svg?style=for-the-badge&logo=awslambda&logoColor=white" alt="AWS Lambda" />
   <img src="https://img.shields.io/badge/AWS_EventBridge-%238C4FFF.svg?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS EventBridge" />
   <img src="https://img.shields.io/badge/AWS_S3-%23569A31.svg?style=for-the-badge&logo=amazons3&logoColor=white" alt="AWS S3" />
@@ -119,7 +120,40 @@ graph TD
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
-3. Set up your `.env` file based on `.env.example`.
+3. Set up your `.env` file in the `backend/` directory:
+   ```env
+   # Server Configuration
+   PORT=8000
+   HOST=0.0.0.0
+   FRONTEND_URL=http://localhost:5173
+
+   # CockroachDB Serverless (pgvector enabled)
+   DATABASE_URL="postgresql://user:password@host:26257/defaultdb?sslmode=verify-full"
+
+   # Supabase (Authentication & JWT Validation)
+   SUPABASE_URL="https://your-project-id.supabase.co"
+   SUPABASE_JWT_SECRET="your-jwt-secret"
+   SUPABASE_JWT_AUDIENCE="authenticated"
+
+   # LLM & Agent Orchestration (Groq)
+   GROQ_API_KEY="gsk_your_groq_api_key_here"
+
+   # AWS Infrastructure (S3, Lambda, EventBridge, SES)
+   AWS_ACCESS_KEY_ID="your_aws_access_key"
+   AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
+   AWS_REGION="us-east-1"
+   AWS_S3_BUCKET_NAME="amplinews-archive-store"
+   AWS_SES_SENDER_EMAIL="digest@yourdomain.com"
+
+   # Embedding Model (HuggingFace)
+   HF_API_KEY="your_hf_api_key_here"
+
+   # News Ingestion
+   NEWS_API_KEY="your_news_api_key_here"
+
+   # Manual admin trigger for the ingestion pipeline
+   ADMIN_SECRET_KEY="change_me_to_a_random_secret"
+   ```
 4. Run the FastAPI server:
    ```bash
    uvicorn main:app --reload --port 8000
@@ -134,7 +168,16 @@ graph TD
    ```bash
    npm install
    ```
-3. Set up your `.env` file with your API URL and Supabase credentials.
+3. Set up your `.env` file in the `frontend/` directory:
+   ```env
+   VITE_API_DEV_URL=http://127.0.0.1:8000
+   VITE_API_PRO_URL=https://your-production-backend.com
+
+   VITE_MODE=development
+
+   VITE_SUPABASE_URL=https://your-project-id.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 4. Start the Vite development server:
    ```bash
    npm run dev
