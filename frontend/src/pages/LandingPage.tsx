@@ -50,7 +50,6 @@ export default function LandingPage() {
         <nav className="hidden items-center gap-7 md:flex editorial-mono text-[11px] font-medium uppercase tracking-[.1em]" style={{ color: 'var(--muted)' }}>
           <button onClick={() => scrollTo('the-edition')} className="cursor-pointer border-0 bg-transparent transition-colors hover:text-[var(--ink)]">The edition</button>
           <button onClick={() => scrollTo('how-it-works')} className="cursor-pointer border-0 bg-transparent transition-colors hover:text-[var(--ink)]">Our method</button>
-          <Link to="/login" className="transition-colors hover:text-[var(--ink)]">Sign in</Link>
         </nav>
         <div className="flex items-center gap-3">
           <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full border editorial-rule bg-transparent transition-transform hover:scale-105" aria-label="Toggle color theme">
@@ -61,7 +60,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {menuOpen && <nav className="landing-shell border-b editorial-rule py-5 md:hidden"><div className="grid gap-4 editorial-mono text-xs uppercase tracking-[.1em]"><button onClick={() => scrollTo('the-edition')} className="w-fit cursor-pointer border-0 bg-transparent">The edition</button><button onClick={() => scrollTo('how-it-works')} className="w-fit cursor-pointer border-0 bg-transparent">Our method</button><Link to="/login">Sign in</Link></div></nav>}
+      {menuOpen && <nav className="landing-shell border-b editorial-rule py-5 md:hidden"><div className="grid gap-4 editorial-mono text-xs uppercase tracking-[.1em]"><button onClick={() => scrollTo('the-edition')} className="w-fit cursor-pointer border-0 bg-transparent">The edition</button><button onClick={() => scrollTo('how-it-works')} className="w-fit cursor-pointer border-0 bg-transparent">Our method</button></div></nav>}
 
       <Hero />
       <Features />

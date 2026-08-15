@@ -29,7 +29,7 @@ def get_personalized_feed(
     # Fetch User Profile to get interest_embedding
     user_profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
     
-    if not user_profile or not user_profile.interest_embedding:
+    if not user_profile or user_profile.interest_embedding is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User profile has no interests defined. Please complete onboarding."
