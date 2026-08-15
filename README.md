@@ -12,7 +12,6 @@ Social media algorithms optimize for engagement by feeding users content that al
   <img src="https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangGraph" />
   <img src="https://img.shields.io/badge/CockroachDB-6933FF?style=for-the-badge&logo=cockroachlabs&logoColor=white" alt="CockroachDB" />
   <img src="https://img.shields.io/badge/pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector" />
-  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/all--MiniLM--L6--v2-F9AB00?style=for-the-badge&logo=huggingface&logoColor=white" alt="all-MiniLM-L6-v2" />
   <img src="https://img.shields.io/badge/AWS_Lambda-%23FF9900.svg?style=for-the-badge&logo=awslambda&logoColor=white" alt="AWS Lambda" />
   <img src="https://img.shields.io/badge/AWS_EventBridge-%238C4FFF.svg?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS EventBridge" />

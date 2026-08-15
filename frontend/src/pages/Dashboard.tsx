@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { fetchUserProfile, syncUser, fetchFeed, type UserProfileResponse, type Article } from '../lib/api';
-import { ArrowUpRight, LogOut, Compass, Bookmark } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, type UserProfileResponse, type Article } from '../lib/api';
+import { ArrowUpRight, LogOut, Compass, Bookmark, X, Heart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
 
@@ -20,6 +21,11 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const [debugLog, setDebugLog] = useState<string>('Starting load...');
+
+  // Reading View State
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [fullArticle, setFullArticle] = useState<any | null>(null);
+  const [loadingArticle, setLoadingArticle] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +105,25 @@ export default function Dashboard() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     navigate('/login', { replace: true });
+  }
+
+  async function handleArticleClick(id: string) {
+    setSelectedArticleId(id);
+    setLoadingArticle(true);
+    setFullArticle(null);
+    try {
+      const res = await fetchArticleById(id);
+      setFullArticle(res.data);
+    } catch (err) {
+      console.error("Failed to fetch full article", err);
+    } finally {
+      setLoadingArticle(false);
+    }
+  }
+
+  function closeReadingView() {
+    setSelectedArticleId(null);
+    setFullArticle(null);
   }
 
   if (view === 'loading') {
@@ -218,7 +243,24 @@ export default function Dashboard() {
           <div className="flex w-full overflow-x-auto divide-x editorial-rule border border-[var(--rule)] bg-[var(--card)] p-4 shadow-sm backdrop-blur-sm md:w-auto">
             <Stat label="Articles Read" value={profile?.total_articles_read ?? 0} />
             <Stat label="Top Topic" value={profile?.most_read_topic ?? '—'} />
-            <Stat label="AI Vector Bias" value={formatLeaning(profile?.baseline_political_leaning ?? 0)} />
+            <div className="px-5 first:pl-2 last:pr-2 min-w-[200px]">
+              <p className="editorial-mono mb-2 text-[8px] uppercase tracking-widest text-[var(--muted)] flex justify-between">
+                <span>Left</span>
+                <span className="font-bold text-[var(--ink)]">{formatLeaning(profile?.baseline_political_leaning ?? 0)}</span>
+                <span>Right</span>
+              </p>
+              <div className="h-1.5 w-full bg-[var(--rule)] rounded-full overflow-hidden relative">
+                <div 
+                  className="absolute top-0 h-full bg-[var(--accent)] transition-all duration-1000"
+                  style={{ 
+                    left: '50%', 
+                    width: `${Math.abs((profile?.baseline_political_leaning ?? 0) * 50)}%`,
+                    transform: (profile?.baseline_political_leaning ?? 0) < 0 ? 'translateX(-100%)' : 'none'
+                  }}
+                />
+                <div className="absolute top-0 left-1/2 w-px h-full bg-[var(--ink)]/30 -translate-x-1/2" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -242,17 +284,19 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {feed.map((article) => (
-              <article key={article.article_id} className="group relative flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]">
+              <article 
+                key={article.article_id} 
+                onClick={() => handleArticleClick(article.article_id)}
+                className="group relative cursor-pointer flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]"
+              >
                 <div>
                   <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3 editorial-mono text-[8px] uppercase tracking-[.15em] text-[var(--muted)]">
                     <span>{article.source}</span>
                     <Bookmark size={12} className="transition-colors group-hover:text-[var(--accent)]" />
                   </div>
-                  <a href={article.url} target="_blank" rel="noopener noreferrer">
-                    <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight hover:text-[var(--accent)] transition-colors">
-                      {article.title}
-                    </h3>
-                  </a>
+                  <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight group-hover:text-[var(--accent)] transition-colors">
+                    {article.title}
+                  </h3>
                   <p className="text-sm leading-relaxed text-[var(--muted)] line-clamp-4">
                     {article.reasoning}
                   </p>
@@ -274,6 +318,97 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedArticleId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-[var(--ink)]/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative flex h-full max-h-[90vh] w-full max-w-4xl flex-col bg-[var(--paper)] shadow-[12px_12px_0_var(--accent)]"
+            >
+              <div className="flex items-center justify-between border-b editorial-rule p-4 sm:p-6 bg-[var(--paper-deep)]">
+                <div className="editorial-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                  {fullArticle ? fullArticle.metadata?.topic : 'Loading...'}
+                </div>
+                <button onClick={closeReadingView} className="p-2 transition-colors hover:text-[var(--accent)]">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 sm:p-10">
+                {loadingArticle ? (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="editorial-mono animate-pulse uppercase tracking-widest text-[var(--accent)]">
+                      Retrieving full text...
+                    </p>
+                  </div>
+                ) : fullArticle ? (
+                  <div className="mx-auto max-w-2xl">
+                    <div className="mb-6 flex items-center gap-3 editorial-mono text-[9px] uppercase tracking-[.15em] text-[var(--accent)]">
+                      <span>{fullArticle.source}</span>
+                      <span>•</span>
+                      <span>{fullArticle.metadata?.bias}</span>
+                    </div>
+                    
+                    <h1 className="editorial-serif mb-8 text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+                      {fullArticle.title}
+                    </h1>
+                    
+                    <div className="prose prose-stone prose-lg max-w-none editorial-serif text-[var(--ink)] leading-relaxed">
+                      {fullArticle.content.split('\n').map((paragraph: string, idx: number) => (
+                        <p key={idx} className="mb-6">{paragraph}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="editorial-mono text-red-500">Failed to load article.</p>
+                  </div>
+                )}
+              </div>
+
+              {fullArticle && !loadingArticle && (
+                <div className="border-t editorial-rule bg-[var(--paper-deep)] p-4 sm:p-6">
+                  <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-4">
+                    <a 
+                      href={fullArticle.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="editorial-mono text-[10px] uppercase tracking-widest underline decoration-[var(--rule)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
+                    >
+                      Read on Original Site
+                    </a>
+                    
+                    <div className="flex items-center gap-3">
+                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                        <Heart size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Like</span>
+                      </button>
+                      
+                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                        <AlertTriangle size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Biased</span>
+                      </button>
+                      
+                      <button className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)]">
+                        <RefreshCw size={14} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Other Side</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

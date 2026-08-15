@@ -61,3 +61,7 @@ export interface FeedResponse {
 export function fetchFeed() {
   return api.get<FeedResponse>('/api/articles/feed');
 }
+
+export function fetchArticleById(id: string) {
+  return api.get(`/api/articles/${id}`);
+}

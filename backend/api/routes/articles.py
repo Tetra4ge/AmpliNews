@@ -74,3 +74,43 @@ def get_personalized_feed(
         })
         
     return {"feed": feed}
+
+@router.get("/{article_id}")
+def get_article(
+    article_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Fetches the full article content and metadata for the reading view.
+    """
+    query = (
+        select(Article, ArticleMetadata)
+        .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+        .where(Article.id == article_id)
+    )
+    result = db.execute(query).first()
+    
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Article not found."
+        )
+        
+    article, metadata = result
+    
+    return {
+        "article_id": str(article.id),
+        "title": article.title,
+        "content": article.content,
+        "url": article.url,
+        "source": article.source,
+        "published_date": article.published_date.isoformat() if article.published_date else None,
+        "metadata": {
+            "bias_score": metadata.bias_score,
+            "bias": get_bias_label(metadata.bias_score),
+            "sentiment": metadata.sentiment,
+            "source_credibility": metadata.source_credibility,
+            "topic": metadata.topic
+        }
+    }
