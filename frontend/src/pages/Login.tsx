@@ -1,14 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { ArrowUpRight, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  
+  // Form State
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  // If already logged in (or a magic-link redirect just completed), skip straight to the dashboard.
+  // If already logged in, skip straight to the dashboard.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate('/dashboard', { replace: true });
@@ -23,37 +31,108 @@ export default function Login() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setStatus('sending');
+    setStatus('loading');
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-    });
+    if (mode === 'signup') {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        setStatus('error');
+        return;
+      }
+      
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          }
+        }
+      });
 
-    if (signInError) {
-      setStatus('error');
-      setError(signInError.message);
-      return;
+      if (signUpError) {
+        setStatus('error');
+        setError(signUpError.message);
+        return;
+      }
+      
+      setStatus('success');
+      
+    } else {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        setStatus('error');
+        setError(signInError.message);
+        return;
+      }
     }
-    setStatus('sent');
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm border border-[#222] bg-black/40 p-8">
-        <h1 className="font-logo text-2xl mb-1">AmpliNews</h1>
-        <p className="text-sm text-neutral-500 mb-6">Sign in to personalize your feed.</p>
-
-        {status === 'sent' ? (
-          <p className="text-sm text-green-400">
-            Check <span className="text-neutral-200">{email}</span> for a magic sign-in link.
+    <main className="landing-page paper-grain flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[380px] border border-[var(--ink)] bg-[var(--card)] p-6 shadow-[6px_6px_0_var(--accent)] backdrop-blur-md sm:p-8">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <h1 className="editorial-serif text-3xl font-black tracking-[-.08em]">
+            ampli<span style={{ color: 'var(--accent)' }}>.</span>news
+          </h1>
+          <p className="editorial-mono mt-3 text-[9px] uppercase tracking-[.1em]" style={{ color: 'var(--muted)' }}>
+            {mode === 'login' ? 'Sign in to access your edition' : 'Join to build your edition'}
           </p>
+        </div>
+
+        <div className="mb-6 flex border-b border-[var(--rule)]">
+          <button 
+            type="button" 
+            onClick={() => { setMode('login'); setError(null); }}
+            className={`flex-1 pb-3 editorial-mono text-[10px] font-semibold uppercase tracking-[.1em] transition-colors ${mode === 'login' ? 'border-b-2 border-[var(--accent)] text-[var(--ink)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
+          >
+            Sign In
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setMode('signup'); setError(null); }}
+            className={`flex-1 pb-3 editorial-mono text-[10px] font-semibold uppercase tracking-[.1em] transition-colors ${mode === 'signup' ? 'border-b-2 border-[var(--accent)] text-[var(--ink)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {status === 'success' && mode === 'signup' ? (
+          <div className="text-center py-4">
+            <p className="editorial-serif text-lg leading-relaxed">
+              Your account has been created.
+            </p>
+            <p className="editorial-mono mt-4 text-[10px] leading-relaxed tracking-[.05em]" style={{ color: 'var(--muted)' }}>
+              Please check <span className="font-bold text-[var(--ink)]">{email}</span> for a confirmation link.
+            </p>
+          </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {mode === 'signup' && (
+              <div>
+                <label htmlFor="name" className="editorial-label mb-1.5 block text-[8px]">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Jane Doe"
+                  className="w-full border-b border-[var(--rule)] bg-transparent py-2 text-sm outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--ink)] editorial-mono"
+                />
+              </div>
+            )}
+            
             <div>
-              <label htmlFor="email" className="block text-xs text-neutral-500 mb-1">
-                Email
+              <label htmlFor="email" className="editorial-label mb-1.5 block text-[8px]">
+                Email Address
               </label>
               <input
                 id="email"
@@ -61,19 +140,53 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-black border border-[#333] px-3 py-2 text-sm outline-none focus:border-neutral-500"
+                placeholder="reader@example.com"
+                className="w-full border-b border-[var(--rule)] bg-transparent py-2 text-sm outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--ink)] editorial-mono"
               />
             </div>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            <div>
+              <label htmlFor="password" className="editorial-label mb-1.5 block text-[8px]">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full border-b border-[var(--rule)] bg-transparent py-2 text-sm outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--ink)] editorial-mono"
+              />
+            </div>
+            
+            {mode === 'signup' && (
+              <div>
+                <label htmlFor="confirmPassword" className="editorial-label mb-1.5 block text-[8px]">
+                  Re-enter Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full border-b border-[var(--rule)] bg-transparent py-2 text-sm outline-none transition-colors placeholder:text-[var(--muted)] focus:border-[var(--ink)] editorial-mono"
+                />
+              </div>
+            )}
+
+            {error && <p className="editorial-mono text-[9px] font-semibold text-[var(--accent)]">{error}</p>}
 
             <button
               type="submit"
-              disabled={status === 'sending'}
-              className="w-full bg-neutral-100 text-black py-2 text-sm font-semibold disabled:opacity-50"
+              disabled={status === 'loading'}
+              className="mt-2 flex w-full items-center justify-center gap-3 px-5 py-3.5 editorial-mono text-[10px] font-medium uppercase tracking-[.1em] transition-transform hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
+              style={{ backgroundColor: 'var(--ink)', color: 'var(--paper)' }}
             >
-              {status === 'sending' ? 'Sending link...' : 'Continue with email'}
+              {status === 'loading' ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
+              {status !== 'loading' && <ArrowUpRight size={14} />}
             </button>
           </form>
         )}

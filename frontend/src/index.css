@@ -30,10 +30,7 @@ button, input { font: inherit; }
   min-height: 100vh;
   overflow: hidden;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 78% 8%, rgba(190, 56, 41, .11), transparent 20rem),
-    radial-gradient(circle at 0% 52%, rgba(178, 150, 95, .12), transparent 25rem),
-    var(--paper);
+  background: var(--paper);
   transition: background .35s ease, color .35s ease;
 }
 
@@ -46,10 +43,7 @@ button, input { font: inherit; }
   --accent: #ef705e;
   --accent-deep: #ffad9f;
   --card: rgba(42, 40, 34, .72);
-  background:
-    radial-gradient(circle at 78% 8%, rgba(239, 112, 94, .13), transparent 21rem),
-    radial-gradient(circle at 0% 52%, rgba(157, 124, 65, .12), transparent 26rem),
-    var(--paper);
+  background: var(--paper);
 }
 
 .landing-page ::selection { color: #fffaf0; background: var(--accent); }
