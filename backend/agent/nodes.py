@@ -157,3 +157,81 @@ def analyze_bias_node(state: DigestState) -> DigestState:
 
     return state
 
+
+def curate_standard_node(state: DigestState) -> DigestState:
+    """
+    Node 3: CurateStandardNode
+    Performs vector similarity search against user's interest_embedding in CockroachDB
+    to retrieve 5 personalized articles for the daily digest.
+    """
+    user_id_str = state.get("user_id")
+    history = state.get("reading_history", [])
+    read_article_ids = {h["article_id"] for h in history if "article_id" in h}
+
+    db = SessionLocal()
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_uuid).first()
+
+        if not profile or profile.interest_embedding is None:
+            state["selected_articles"] = []
+            return state
+
+        user_embedding = profile.interest_embedding
+        similarity = Article.article_embedding.cosine_distance(user_embedding).label("distance")
+
+        # Query top 10 articles by vector distance
+        query = (
+            select(Article, ArticleMetadata, similarity)
+            .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+            .order_by(similarity)
+            .limit(15)
+        )
+
+        results = db.execute(query).all()
+
+        curated: List[Dict[str, Any]] = []
+        for article, metadata, distance in results:
+            art_id_str = str(article.id)
+            # Skip articles already read recently
+            if art_id_str in read_article_ids:
+                continue
+
+            match_pct = round((1 - float(distance)) * 100, 1)
+            bias_val = metadata.bias_score or 0.0
+
+            if bias_val < -0.3:
+                bias_label = "Left"
+            elif bias_val > 0.3:
+                bias_label = "Right"
+            else:
+                bias_label = "Center"
+
+            curated.append({
+                "article_id": art_id_str,
+                "title": article.title,
+                "source": article.source,
+                "url": article.url,
+                "content_summary": article.content[:200] + "..." if len(article.content) > 200 else article.content,
+                "match_percentage": match_pct,
+                "bias": bias_label,
+                "bias_score": bias_val,
+                "credibility": metadata.source_credibility or 0.8,
+                "topic": metadata.topic or "General",
+            })
+
+            if len(curated) >= 5:
+                break
+
+        state["selected_articles"] = curated
+        logger.info(f"[CurateStandardNode] Curated {len(curated)} standard articles for user {user_id_str}")
+
+    except Exception as e:
+        logger.error(f"[CurateStandardNode] Error curating articles: {e}", exc_info=True)
+        state["selected_articles"] = []
+    finally:
+        db.close()
+
+    return state
+
+
