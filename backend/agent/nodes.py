@@ -144,7 +144,8 @@ def analyze_bias_node(state: DigestState) -> DigestState:
     echo_chamber_risk = max(0.0, min(1.0, echo_chamber_risk))
 
     # Threshold for perspective intervention
-    echo_chamber_detected = echo_chamber_risk >= 0.65
+    echo_chamber_detected = echo_chamber_risk >= 0.60
+
 
     state["echo_chamber_risk"] = echo_chamber_risk
     state["echo_chamber_detected"] = echo_chamber_detected
