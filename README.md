@@ -12,7 +12,8 @@ Social media algorithms optimize for engagement by feeding users content that al
   <img src="https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangGraph" />
   <img src="https://img.shields.io/badge/CockroachDB-6933FF?style=for-the-badge&logo=cockroachlabs&logoColor=white" alt="CockroachDB" />
   <img src="https://img.shields.io/badge/pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="pgvector" />
-  <img src="https://img.shields.io/badge/all--MiniLM--L6--v2-F9AB00?style=for-the-badge&logo=huggingface&logoColor=white" alt="all-MiniLM-L6-v2" />
+  <img src="https://img.shields.io/badge/bge--small--en--v1.5-F9AB00?style=for-the-badge&logo=huggingface&logoColor=white" alt="bge-small-en-v1.5" />
+  <img src="https://img.shields.io/badge/llama--3.1--8b--instant-0466C8?style=for-the-badge&logo=meta&logoColor=white" alt="Llama 3.1 8b" />
   <img src="https://img.shields.io/badge/AWS_Lambda-%23FF9900.svg?style=for-the-badge&logo=awslambda&logoColor=white" alt="AWS Lambda" />
   <img src="https://img.shields.io/badge/AWS_EventBridge-%238C4FFF.svg?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS EventBridge" />
   <img src="https://img.shields.io/badge/AWS_S3-%23569A31.svg?style=for-the-badge&logo=amazons3&logoColor=white" alt="AWS S3" />
@@ -83,7 +84,7 @@ graph TD
 ```
 
 ### Agent & AI Layer
-*   **Groq**: Lightning-fast LLM inference (Llama/Mixtral) used for agent reasoning, topic classification, and sentiment/bias analysis.
+*   **Groq**: Lightning-fast LLM inference using **`llama-3.1-8b-instant`** for agent reasoning, topic classification, and sentiment/bias analysis.
 *   **LangGraph**: Orchestrates the multi-agent workflow (Context Retrieval ➔ Similarity Search ➔ Bubble Detection ➔ Contrarian Search ➔ Digest Synthesis).
 
 ### Data & Memory Layer (CockroachDB)
