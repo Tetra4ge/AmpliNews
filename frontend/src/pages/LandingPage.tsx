@@ -7,14 +7,10 @@ import Features from '../components/landing/Features';
 import HowItWorks from '../components/landing/HowItWorks';
 import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
-
-type Theme = 'light' | 'dark';
+import { useTheme } from '../hooks/useTheme';
 
 export default function LandingPage() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('amplinews-theme');
-    return saved === 'dark' ? 'dark' : 'light';
-  });
+  const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -24,8 +20,6 @@ export default function LandingPage() {
     frame = requestAnimationFrame(raf);
     return () => { cancelAnimationFrame(frame); lenis.destroy(); };
   }, []);
-
-  useEffect(() => { localStorage.setItem('amplinews-theme', theme); }, [theme]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -52,7 +46,14 @@ export default function LandingPage() {
           <button onClick={() => scrollTo('how-it-works')} className="cursor-pointer border-0 bg-transparent transition-colors hover:text-[var(--ink)]">Our method</button>
         </nav>
         <div className="flex items-center gap-3">
-          <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full border editorial-rule bg-transparent transition-transform hover:scale-105" aria-label="Toggle color theme">
+          <button
+            onClick={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              toggleTheme({ x: event.clientX || bounds.left + bounds.width / 2, y: event.clientY || bounds.top + bounds.height / 2 });
+            }}
+            className="theme-toggle-button grid h-9 w-9 cursor-pointer place-items-center rounded-full border editorial-rule bg-transparent transition-transform hover:scale-105"
+            aria-label="Toggle color theme"
+          >
             {theme === 'light' ? <Moon size={15} strokeWidth={1.7} /> : <Sun size={16} strokeWidth={1.7} />}
           </button>
           <Link to="/login" className="hidden items-center gap-2 px-4 py-2.5 editorial-mono text-[10px] font-medium uppercase tracking-[.1em] transition-transform hover:-translate-y-0.5 sm:flex" style={{ backgroundColor: 'var(--ink)', color: 'var(--paper)' }}>Start reading <ArrowUpRight size={13} /></Link>

@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, LogOut, Compass } from 'lucide-react';
+import { ArrowUpRight, LogOut, Compass, Moon, Sun } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
+import { useTheme } from '../hooks/useTheme';
 import { ArticleCard } from '../components/dashboard/ArticleCard';
 import { ReadingModal } from '../components/dashboard/ReadingModal';
 import { Stat } from '../components/dashboard/Stat';
@@ -11,6 +12,7 @@ const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const {
     view,
     profile,
@@ -132,18 +134,30 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="landing-page paper-grain min-h-screen pb-24">
+    <main className="landing-page paper-grain min-h-screen pb-24" data-theme={theme}>
       <header className="border-b editorial-rule sticky top-0 z-50 bg-[var(--paper)]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link to="/" className="editorial-serif text-2xl font-black tracking-[-.08em]">
             ampli<span style={{ color: 'var(--accent)' }}>.</span>news
           </Link>
-          <button 
-            onClick={handleSignOut} 
-            className="flex items-center gap-2 editorial-mono text-[9px] font-medium uppercase tracking-[.1em] text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
-          >
-            Sign out <LogOut size={13} />
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={(event) => {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                toggleTheme({ x: event.clientX || bounds.left + bounds.width / 2, y: event.clientY || bounds.top + bounds.height / 2 });
+              }}
+              className="theme-toggle-button grid h-9 w-9 cursor-pointer place-items-center rounded-full border editorial-rule bg-transparent transition-transform hover:scale-105"
+              aria-label="Toggle color theme"
+            >
+              {theme === 'light' ? <Moon size={15} strokeWidth={1.7} /> : <Sun size={16} strokeWidth={1.7} />}
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 editorial-mono text-[9px] font-medium uppercase tracking-[.1em] text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+            >
+              Sign out <LogOut size={13} />
+            </button>
+          </div>
         </div>
       </header>
 
