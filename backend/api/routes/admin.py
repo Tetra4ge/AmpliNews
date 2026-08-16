@@ -58,3 +58,20 @@ async def trigger_global_digest():
     summary = lambda_handler({}, None)
     return summary
 
+
+@router.post("/archive", dependencies=[Depends(verify_admin_secret)])
+async def trigger_archival(
+    days_cutoff: int = 30,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Manually triggers Phase 10 Tiered Storage & AWS S3 Archival.
+
+    Moves articles older than `days_cutoff` days into AWS S3 cold storage
+    and nullifies their heavy vector embeddings in CockroachDB.
+    """
+    from services.archival import archive_stale_articles
+    summary = archive_stale_articles(db, days_cutoff=days_cutoff, batch_limit=limit)
+    return {"status": "success", **summary}
+
+
