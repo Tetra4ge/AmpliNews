@@ -185,7 +185,8 @@ graph TD
    ```
 
 ## Hackathon Compliance
-*   **Agentic App**: Fully autonomous LangGraph workflow that dynamically retrieves data and reasons about user bias.
-*   **CockroachDB Tools**: Uses **Distributed Vector Indexing** for semantic search and the **CockroachDB Agent Skills Repo** for memory access.
-*   **AWS Services**: Uses **Amazon S3** for artifact and document storage.
-*   **Persistent Memory**: CockroachDB is not just an afterthought; it fundamentally powers the agent's ability to remember what users read and track their shifting political leanings over time.
+*   **Agentic App**: Fully autonomous LangGraph workflow (`backend/agent/graph.py`) that dynamically retrieves reading history, calculates echo chamber risk, curates personalized & contrarian perspectives, and synthesizes daily HTML digests using Groq.
+*   **Serverless AWS Lambda**: Includes an AWS Lambda handler entrypoint (`backend/lambda_handler.py`) and AWS SES integration (`backend/services/email.py`).
+*   **CockroachDB Tools**: Uses **Distributed Vector Indexing** (HNSW pgvector) for semantic search and CockroachDB tables for stateful agentic memory.
+*   **AWS Services**: Uses **Amazon S3** for artifact/archive storage and **AWS SES** for automated daily digest delivery.
+*   **Persistent Memory**: CockroachDB fundamentally powers the agent's ability to track user reading patterns and update `interest_embedding` vectors over time.
