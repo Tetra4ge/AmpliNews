@@ -141,14 +141,28 @@ def get_article(
         )
         
     article, metadata = result
-    
+
+    content_text = article.content
+    is_archived = False
+
+    # Tier 3 S3 Cold Storage Fetching:
+    # If content was nullified by archival script, fetch payload transparently from AWS S3
+    if not content_text and article.s3_archive_url:
+        from services.s3_storage import fetch_archived_article_from_s3
+        s3_payload = fetch_archived_article_from_s3(article.s3_archive_url)
+        if s3_payload:
+            content_text = s3_payload.get("content", "[Archived Article Payload]")
+            is_archived = True
+
     return {
         "article_id": str(article.id),
         "title": article.title,
-        "content": article.content,
+        "content": content_text or "[Article text unverified]",
         "url": article.url,
         "source": article.source,
         "published_date": article.published_date.isoformat() if article.published_date else None,
+        "is_archived": is_archived,
+        "s3_archive_url": article.s3_archive_url,
         "metadata": {
             "bias_score": metadata.bias_score,
             "bias": get_bias_label(metadata.bias_score),
@@ -157,3 +171,4 @@ def get_article(
             "topic": metadata.topic
         }
     }
+
