@@ -328,4 +328,115 @@ def curate_contrarian_node(state: DigestState) -> DigestState:
     return state
 
 
+def synthesize_digest_node(state: DigestState) -> DigestState:
+    """
+    Node 5: SynthesizeDigestNode
+    Calls Groq LLM to synthesize a clean, responsive HTML email digest from the curated state.
+    Includes Top Curated Stories, Perspective Check (if echo chamber detected), and Reading Insights.
+    """
+    selected = state.get("selected_articles", [])
+    contrarians = state.get("contrarian_articles", [])
+    risk = state.get("echo_chamber_risk", 0.0)
+    detected = state.get("echo_chamber_detected", False)
+    dominant_bias = state.get("dominant_bias", "Balanced")
+    user_id = state.get("user_id", "Reader")
+
+    # Simple fallback HTML generator in case Groq call is offline/unreachable
+    def build_fallback_html() -> str:
+        selected_items_html = "".join([
+            f"""<div style="margin-bottom: 16px; padding: 12px; border-left: 3px solid #111; background-color: #f9f9f9;">
+                <h4 style="margin: 0 0 6px 0;"><a href="{a['url']}" style="color: #111; text-decoration: none;">{a['title']}</a></h4>
+                <p style="margin: 0; font-size: 12px; color: #555;"><strong>Source:</strong> {a['source']} | <strong>Bias:</strong> {a['bias']} | <strong>Match:</strong> {a['match_percentage']}%</p>
+                <p style="margin: 6px 0 0 0; font-size: 13px; color: #333;">{a['content_summary']}</p>
+            </div>""" for a in selected
+        ])
+
+        contrarian_items_html = ""
+        if detected and contrarians:
+            contrarian_items_html = "<h3 style='color: #c53030; margin-top: 24px;'>⚡ Perspective Check (Opposing Viewpoints)</h3>"
+            contrarian_items_html += "".join([
+                f"""<div style="margin-bottom: 16px; padding: 12px; border-left: 3px solid #c53030; background-color: #fff5f5;">
+                    <h4 style="margin: 0 0 6px 0;"><a href="{a['url']}" style="color: #9b2c2c; text-decoration: none;">{a['title']}</a></h4>
+                    <p style="margin: 0; font-size: 12px; color: #742a2a;"><strong>Source:</strong> {a['source']} | <strong>Bias:</strong> {a['bias']} Viewpoint</p>
+                    <p style="margin: 6px 0 0 0; font-size: 13px; color: #2d3748;">{a['content_summary']}</p>
+                </div>""" for a in contrarians
+            ])
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><title>Your AmpliNews Daily Digest</title></head>
+        <body style="font-family: Georgia, serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px; text-align: center;">
+                <h1 style="font-size: 28px; margin: 0;">ampli<span style="color: #e53e3e;">.</span>news</h1>
+                <p style="font-family: monospace; font-size: 11px; text-transform: uppercase; color: #666; margin-top: 4px;">Personalized AI News Digest & Perspective Agent</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h2>Today's Top Curated Stories</h2>
+                {selected_items_html}
+            </div>
+            {contrarian_items_html}
+            <div style="border-top: 1px solid #ddd; margin-top: 30px; padding-top: 16px; font-family: monospace; font-size: 12px; color: #666;">
+                <p><strong>Media Diet Insight:</strong> Echo Chamber Risk: {int(risk * 100)}% | Dominant Leaning: {dominant_bias}</p>
+            </div>
+        </body>
+        </html>
+        """
+
+    try:
+        from groq import Groq
+        groq_client = Groq(api_key=settings.GROQ_API_KEY)
+
+        prompt_context = f"""
+        User ID: {user_id}
+        Echo Chamber Risk: {risk} (Detected: {detected})
+        Dominant Reading Bias: {dominant_bias}
+        
+        Selected Personalized Articles:
+        {selected}
+        
+        Contrarian Perspective Articles:
+        {contrarians}
+        """
+
+        sys_prompt = """You are AmpliNews Agent, an AI news editor. Write a clean, responsive HTML email for the user's daily digest.
+        Requirements:
+        1. Professional newspaper editorial design inline CSS (Georgia serif font, clean borders).
+        2. Header: ampli.news Daily Edition.
+        3. Top Curated Stories section featuring the selected articles with title links, source, bias tag, and short summary.
+        4. If echo_chamber_detected is True, add a prominent "Perspective Check ⚡" callout section introducing the contrarian articles with a friendly agent note encouraging media diet diversity.
+        5. Reading Insights footer showing the user's Echo Chamber Risk rating.
+        Return ONLY valid raw HTML code without markdown code blocks."""
+
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": prompt_context}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+
+        html_content = response.choices[0].message.content.strip()
+        # Clean up any potential markdown code fence markers
+        if html_content.startswith("```"):
+            html_content = html_content.split("```")[1]
+            if html_content.startswith("html"):
+                html_content = html_content[4:]
+            html_content = html_content.strip()
+
+        state["final_email_html"] = html_content
+        state["status"] = "success"
+        logger.info(f"[SynthesizeDigestNode] Successfully generated LLM HTML digest for user {user_id}")
+
+    except Exception as e:
+        logger.warning(f"[SynthesizeDigestNode] Groq synthesis failed, using fallback HTML generator: {e}")
+        state["final_email_html"] = build_fallback_html()
+        state["status"] = "success"
+
+    return state
+
+
+
 
