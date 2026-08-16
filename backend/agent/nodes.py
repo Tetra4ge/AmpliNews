@@ -235,3 +235,97 @@ def curate_standard_node(state: DigestState) -> DigestState:
     return state
 
 
+def curate_contrarian_node(state: DigestState) -> DigestState:
+    """
+    Node 4: CurateContrarianNode (Conditional execution)
+    Executed when echo_chamber_detected is True.
+    Retrieves 1-2 articles offering opposing ideological perspectives.
+    """
+    if not state.get("echo_chamber_detected", False):
+        state["contrarian_articles"] = []
+        return state
+
+    dominant_bias = state.get("dominant_bias", "Center")
+    user_id_str = state.get("user_id")
+
+    db = SessionLocal()
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_uuid).first()
+
+        # Set target bias filter
+        if dominant_bias == "Left":
+            bias_filter = ArticleMetadata.bias_score > 0.2
+        elif dominant_bias == "Right":
+            bias_filter = ArticleMetadata.bias_score < -0.1
+        else:
+            bias_filter = (ArticleMetadata.bias_score > 0.3) | (ArticleMetadata.bias_score < -0.3)
+
+        if profile and profile.interest_embedding is not None:
+            user_embedding = profile.interest_embedding
+            similarity = Article.article_embedding.cosine_distance(user_embedding).label("distance")
+
+            query = (
+                select(Article, ArticleMetadata, similarity)
+                .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+                .where(bias_filter)
+                .order_by(similarity, ArticleMetadata.source_credibility.desc())
+                .limit(5)
+            )
+        else:
+            query = (
+                select(Article, ArticleMetadata)
+                .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+                .where(bias_filter)
+                .order_by(ArticleMetadata.source_credibility.desc())
+                .limit(5)
+            )
+
+        results = db.execute(query).all()
+
+        contrarians: List[Dict[str, Any]] = []
+        for row in results:
+            if len(row) == 3:
+                article, metadata, distance = row
+                match_pct = round((1 - float(distance)) * 100, 1)
+            else:
+                article, metadata = row
+                match_pct = 80.0
+
+            bias_val = metadata.bias_score or 0.0
+            if bias_val < -0.3:
+                bias_label = "Left"
+            elif bias_val > 0.3:
+                bias_label = "Right"
+            else:
+                bias_label = "Center"
+
+            contrarians.append({
+                "article_id": str(article.id),
+                "title": article.title,
+                "source": article.source,
+                "url": article.url,
+                "content_summary": article.content[:200] + "..." if len(article.content) > 200 else article.content,
+                "match_percentage": match_pct,
+                "bias": bias_label,
+                "bias_score": bias_val,
+                "credibility": metadata.source_credibility or 0.85,
+                "topic": metadata.topic or "Perspective Check",
+            })
+
+            if len(contrarians) >= 2:
+                break
+
+        state["contrarian_articles"] = contrarians
+        logger.info(f"[CurateContrarianNode] Curated {len(contrarians)} contrarian articles for user {user_id_str}")
+
+    except Exception as e:
+        logger.error(f"[CurateContrarianNode] Error fetching contrarian articles: {e}", exc_info=True)
+        state["contrarian_articles"] = []
+    finally:
+        db.close()
+
+    return state
+
+
+
