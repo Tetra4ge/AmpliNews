@@ -90,3 +90,20 @@ export function fetchOpposingView(articleId: string) {
   return api.post<OpposingViewResponse>('/api/agent/opposing-view', { article_id: articleId });
 }
 
+export interface DigestTriggerResponse {
+  user_id: string;
+  status: string;
+  echo_chamber_risk: number;
+  echo_chamber_detected: boolean;
+  dominant_bias: string;
+  articles_selected_count: number;
+  contrarian_articles_count: number;
+  html_preview: string;
+  email_status: string;
+}
+
+export function triggerUserDigest() {
+  return api.post<DigestTriggerResponse>('/api/agent/digest', { send_email: true });
+}
+
+

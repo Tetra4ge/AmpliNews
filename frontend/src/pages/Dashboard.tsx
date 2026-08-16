@@ -6,6 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import { ArticleCard } from '../components/dashboard/ArticleCard';
 import { ReadingModal } from '../components/dashboard/ReadingModal';
 import { Stat } from '../components/dashboard/Stat';
+import { EchoChamberBanner } from '../components/dashboard/EchoChamberBanner';
 import { formatLeaning } from '../utils/formatters';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
@@ -190,6 +191,11 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        <EchoChamberBanner 
+          leaning={profile?.baseline_political_leaning ?? 0}
+          totalRead={profile?.total_articles_read ?? 0}
+        />
 
         <div className="mb-8 flex items-center justify-between border-b editorial-rule pb-4">
           <h2 className="editorial-serif text-2xl font-bold tracking-tight">Curated for you</h2>
