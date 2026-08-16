@@ -77,3 +77,16 @@ export function logArticleRead(payload: ReadPayload) {
   return api.post('/api/articles/read', payload);
 }
 
+export interface OpposingViewResponse {
+  article_id: string;
+  title: string;
+  bias: string;
+  bias_score: number;
+  credibility: number;
+  similarity: number;
+}
+
+export function fetchOpposingView(articleId: string) {
+  return api.post<OpposingViewResponse>('/api/agent/opposing-view', { article_id: articleId });
+}
+

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { AnimatePresence, motion } from 'framer-motion';
-import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, logArticleRead, type UserProfileResponse, type Article } from '../lib/api';
+import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, logArticleRead, fetchOpposingView, type UserProfileResponse, type Article, type OpposingViewResponse } from '../lib/api';
 import { ArrowUpRight, LogOut, Compass, Bookmark, X, Heart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
@@ -29,6 +29,11 @@ export default function Dashboard() {
   const [readStartTime, setReadStartTime] = useState<number | null>(null);
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [isBiased, setIsBiased] = useState<boolean>(false);
+
+  // Opposing View State
+  const [opposingArticle, setOpposingArticle] = useState<OpposingViewResponse | null>(null);
+  const [loadingOpposing, setLoadingOpposing] = useState(false);
+  const [opposingError, setOpposingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +120,8 @@ export default function Dashboard() {
     setReadStartTime(Date.now());
     setIsLiked(false);
     setIsBiased(false);
+    setOpposingArticle(null);
+    setOpposingError(null);
     setLoadingArticle(true);
     setFullArticle(null);
     try {
@@ -146,6 +153,8 @@ export default function Dashboard() {
     setReadStartTime(null);
     setIsLiked(false);
     setIsBiased(false);
+    setOpposingArticle(null);
+    setOpposingError(null);
   }
 
   async function handleLikeClick() {
@@ -183,6 +192,25 @@ export default function Dashboard() {
       });
     } catch (err) {
       console.error("Failed to log biased interaction", err);
+    }
+  }
+
+  async function handleOtherSideClick() {
+    if (!selectedArticleId) return;
+    setLoadingOpposing(true);
+    setOpposingError(null);
+    setOpposingArticle(null);
+    try {
+      const res = await fetchOpposingView(selectedArticleId);
+      setOpposingArticle(res.data);
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setOpposingError("No opposing viewpoints found for this specific story yet.");
+      } else {
+        setOpposingError("Failed to fetch opposing view.");
+      }
+    } finally {
+      setLoadingOpposing(false);
     }
   }
 
@@ -426,6 +454,38 @@ export default function Dashboard() {
                         <p key={idx} className="mb-6">{paragraph}</p>
                       ))}
                     </div>
+
+                    {opposingError && (
+                      <div className="mt-8 border border-amber-500 bg-amber-50 p-4">
+                        <p className="editorial-mono text-[10px] uppercase text-amber-700 font-bold">{opposingError}</p>
+                      </div>
+                    )}
+                    
+                    {opposingArticle && (
+                      <div className="mt-12 border-2 border-[var(--accent)] bg-[var(--card)] p-6 shadow-[8px_8px_0_var(--accent)] transition-all">
+                        <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3">
+                          <h3 className="editorial-serif text-2xl font-bold tracking-tight">Perspective Challenge</h3>
+                          <span className="editorial-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Agent Suggestion</span>
+                        </div>
+                        <div className="mb-2 flex items-center gap-3 editorial-mono text-[9px] uppercase tracking-[.15em] text-[var(--accent)]">
+                          <span className="font-bold">{opposingArticle.bias} Viewpoint</span>
+                          <span>•</span>
+                          <span>{Math.round(opposingArticle.similarity * 100)}% Match</span>
+                        </div>
+                        <h4 
+                          className="editorial-serif text-xl font-medium leading-tight mb-4 cursor-pointer hover:text-[var(--accent)] transition-colors" 
+                          onClick={() => handleArticleClick(opposingArticle.article_id)}
+                        >
+                          {opposingArticle.title}
+                        </h4>
+                        <button 
+                          onClick={() => handleArticleClick(opposingArticle.article_id)}
+                          className="editorial-mono text-[9px] uppercase tracking-widest underline decoration-[var(--accent)] underline-offset-4 text-[var(--ink)] hover:text-[var(--accent)]"
+                        >
+                          Read this perspective &rarr;
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center">
@@ -471,9 +531,13 @@ export default function Dashboard() {
                         <span className="editorial-mono text-[9px] uppercase tracking-widest">{isBiased ? 'Biased Flagged' : 'Too Biased'}</span>
                       </button>
                       
-                      <button className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)]">
-                        <RefreshCw size={14} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Other Side</span>
+                      <button 
+                        onClick={handleOtherSideClick}
+                        disabled={loadingOpposing}
+                        className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)] disabled:opacity-50 disabled:hover:translate-y-0"
+                      >
+                        <RefreshCw size={14} className={loadingOpposing ? "animate-spin" : ""} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{loadingOpposing ? 'Searching...' : 'Other Side'}</span>
                       </button>
                     </div>
                   </div>
