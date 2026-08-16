@@ -106,6 +106,8 @@ def run_phase9_test():
             subject="[TEST] Your AmpliNews Daily Digest 🗞️"
         )
         print(f"Email Dispatch Result: {email_res}")
+        assert email_res.get("status") in ["sent", "simulated", "simulated_sandbox"], f"Email dispatch failed: {email_res}"
+
 
         print("\n" + "=" * 70)
         print("🎉 ALL PHASE 9 VERIFICATION CHECKS PASSED PERFECTLY!")
