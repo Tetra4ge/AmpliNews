@@ -1,218 +1,43 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { AnimatePresence, motion } from 'framer-motion';
-import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, logArticleRead, fetchOpposingView, type UserProfileResponse, type Article, type OpposingViewResponse } from '../lib/api';
-import { ArrowUpRight, LogOut, Compass, Bookmark, X, Heart, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { ArrowUpRight, LogOut, Compass } from 'lucide-react';
+import { useDashboard } from '../hooks/useDashboard';
+import { ArticleCard } from '../components/dashboard/ArticleCard';
+import { ReadingModal } from '../components/dashboard/ReadingModal';
+import { Stat } from '../components/dashboard/Stat';
+import { formatLeaning } from '../utils/formatters';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
 
-type ViewState = 'loading' | 'onboarding' | 'ready' | 'error';
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [view, setView] = useState<ViewState>('loading');
-  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
-  const [feed, setFeed] = useState<Article[]>([]);
-  
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [leaning, setLeaning] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [debugLog, setDebugLog] = useState<string>('Starting load...');
-
-  // Reading View State
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
-  const [fullArticle, setFullArticle] = useState<any | null>(null);
-  const [loadingArticle, setLoadingArticle] = useState(false);
-  const [readStartTime, setReadStartTime] = useState<number | null>(null);
-  const [isLiked, setIsLiked] = useState<boolean>(false);
-  const [isBiased, setIsBiased] = useState<boolean>(false);
-
-  // Opposing View State
-  const [opposingArticle, setOpposingArticle] = useState<OpposingViewResponse | null>(null);
-  const [loadingOpposing, setLoadingOpposing] = useState(false);
-  const [opposingError, setOpposingError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setDebugLog('Checking session...');
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/login', { replace: true });
-        return;
-      }
-
-      try {
-        setDebugLog('Fetching user profile...');
-        const res = await fetchUserProfile();
-        if (!cancelled) {
-          setDebugLog('Profile fetched. Setting ready...');
-          setProfile(res.data);
-          setView('ready');
-          
-          // Fetch feed immediately after profile is ready
-          try {
-            const feedRes = await fetchFeed();
-            if (!cancelled) {
-              setFeed(feedRes.data.feed || []);
-            }
-          } catch (feedErr) {
-            console.error("Could not fetch feed", feedErr);
-          }
-        }
-      } catch (err: any) {
-        if (cancelled) return;
-        setDebugLog(`Error occurred: ${err.message}`);
-        if (err?.response?.status === 404) {
-          setView('onboarding');
-        } else {
-          const detail = err?.response?.data?.detail || err.message;
-          setError(`API Error: ${detail}`);
-          setView('error');
-        }
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
-
-  function toggleTopic(topic: string) {
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-    );
-  }
-
-  async function handleOnboardingSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (selectedTopics.length === 0) return;
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      await syncUser({ selected_topics: selectedTopics, baseline_leaning: leaning });
-      const res = await fetchUserProfile();
-      setProfile(res.data);
-      setView('ready');
-      
-      const feedRes = await fetchFeed();
-      setFeed(feedRes.data.feed || []);
-    } catch {
-      setError('Failed to save your preferences. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    navigate('/login', { replace: true });
-  }
-
-  async function handleArticleClick(id: string) {
-    setSelectedArticleId(id);
-    setReadStartTime(Date.now());
-    setIsLiked(false);
-    setIsBiased(false);
-    setOpposingArticle(null);
-    setOpposingError(null);
-    setLoadingArticle(true);
-    setFullArticle(null);
-    try {
-      const res = await fetchArticleById(id);
-      setFullArticle(res.data);
-    } catch (err) {
-      console.error("Failed to fetch full article", err);
-    } finally {
-      setLoadingArticle(false);
-    }
-  }
-
-  async function closeReadingView() {
-    if (selectedArticleId && readStartTime) {
-      const duration = Math.max(0, Math.round((Date.now() - readStartTime) / 1000));
-      try {
-        await logArticleRead({
-          article_id: selectedArticleId,
-          read_duration_seconds: duration,
-          liked: isLiked,
-          rejected_biased: isBiased
-        });
-      } catch (err) {
-        console.error("Failed to log reading interaction", err);
-      }
-    }
-    setSelectedArticleId(null);
-    setFullArticle(null);
-    setReadStartTime(null);
-    setIsLiked(false);
-    setIsBiased(false);
-    setOpposingArticle(null);
-    setOpposingError(null);
-  }
-
-  async function handleLikeClick() {
-    if (!selectedArticleId) return;
-    const newLiked = !isLiked;
-    setIsLiked(newLiked);
-    if (newLiked) setIsBiased(false);
-
-    const duration = readStartTime ? Math.max(0, Math.round((Date.now() - readStartTime) / 1000)) : 0;
-    try {
-      await logArticleRead({
-        article_id: selectedArticleId,
-        read_duration_seconds: duration,
-        liked: newLiked,
-        rejected_biased: false
-      });
-    } catch (err) {
-      console.error("Failed to log like interaction", err);
-    }
-  }
-
-  async function handleBiasedClick() {
-    if (!selectedArticleId) return;
-    const newBiased = !isBiased;
-    setIsBiased(newBiased);
-    if (newBiased) setIsLiked(false);
-
-    const duration = readStartTime ? Math.max(0, Math.round((Date.now() - readStartTime) / 1000)) : 0;
-    try {
-      await logArticleRead({
-        article_id: selectedArticleId,
-        read_duration_seconds: duration,
-        liked: false,
-        rejected_biased: newBiased
-      });
-    } catch (err) {
-      console.error("Failed to log biased interaction", err);
-    }
-  }
-
-  async function handleOtherSideClick() {
-    if (!selectedArticleId) return;
-    setLoadingOpposing(true);
-    setOpposingError(null);
-    setOpposingArticle(null);
-    try {
-      const res = await fetchOpposingView(selectedArticleId);
-      setOpposingArticle(res.data);
-    } catch (err: any) {
-      if (err.response?.status === 404) {
-        setOpposingError("No opposing viewpoints found for this specific story yet.");
-      } else {
-        setOpposingError("Failed to fetch opposing view.");
-      }
-    } finally {
-      setLoadingOpposing(false);
-    }
-  }
+  const {
+    view,
+    profile,
+    feed,
+    selectedTopics,
+    leaning,
+    submitting,
+    error,
+    debugLog,
+    selectedArticleId,
+    fullArticle,
+    loadingArticle,
+    isLiked,
+    isBiased,
+    opposingArticle,
+    loadingOpposing,
+    opposingError,
+    setLeaning,
+    toggleTopic,
+    handleOnboardingSubmit,
+    handleSignOut,
+    handleArticleClick,
+    closeReadingView,
+    handleLikeClick,
+    handleBiasedClick,
+    handleOtherSideClick
+  } = useDashboard(navigate);
 
   if (view === 'loading') {
     return (
@@ -372,36 +197,11 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {feed.map((article) => (
-              <article 
-                key={article.article_id} 
-                onClick={() => handleArticleClick(article.article_id)}
-                className="group relative cursor-pointer flex flex-col justify-between border border-[var(--rule)] bg-[var(--card)] p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_var(--accent)]"
-              >
-                <div>
-                  <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3 editorial-mono text-[8px] uppercase tracking-[.15em] text-[var(--muted)]">
-                    <span>{article.source}</span>
-                    <Bookmark size={12} className="transition-colors group-hover:text-[var(--accent)]" />
-                  </div>
-                  <h3 className="editorial-serif mb-3 text-xl font-bold leading-tight tracking-tight group-hover:text-[var(--accent)] transition-colors">
-                    {article.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-[var(--muted)] line-clamp-4">
-                    {article.reasoning}
-                  </p>
-                </div>
-                
-                <div className="mt-6 border-t editorial-rule pt-4 flex items-center justify-between">
-                  <div className="editorial-mono text-[8px] uppercase tracking-widest">
-                    <span className="text-[var(--muted)]">Leaning: </span>
-                    <span className="font-bold text-[var(--ink)]">{article.bias}</span>
-                  </div>
-                  {article.match_percentage !== undefined && (
-                    <div className="editorial-mono text-[8px] uppercase tracking-widest text-[var(--accent)]">
-                      Match {article.match_percentage}%
-                    </div>
-                  )}
-                </div>
-              </article>
+              <ArticleCard 
+                key={article.article_id}
+                article={article}
+                onClick={handleArticleClick}
+              />
             ))}
           </div>
         )}
@@ -409,159 +209,22 @@ export default function Dashboard() {
 
       <AnimatePresence>
         {selectedArticleId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-[var(--ink)]/80 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="relative flex h-full max-h-[90vh] w-full max-w-4xl flex-col bg-[var(--paper)] shadow-[12px_12px_0_var(--accent)]"
-            >
-              <div className="flex items-center justify-between border-b editorial-rule p-4 sm:p-6 bg-[var(--paper-deep)]">
-                <div className="editorial-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
-                  {fullArticle ? fullArticle.metadata?.topic : 'Loading...'}
-                </div>
-                <button onClick={closeReadingView} className="p-2 transition-colors hover:text-[var(--accent)]">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 sm:p-10">
-                {loadingArticle ? (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="editorial-mono animate-pulse uppercase tracking-widest text-[var(--accent)]">
-                      Retrieving full text...
-                    </p>
-                  </div>
-                ) : fullArticle ? (
-                  <div className="mx-auto max-w-2xl">
-                    <div className="mb-6 flex items-center gap-3 editorial-mono text-[9px] uppercase tracking-[.15em] text-[var(--accent)]">
-                      <span>{fullArticle.source}</span>
-                      <span>•</span>
-                      <span>{fullArticle.metadata?.bias}</span>
-                    </div>
-                    
-                    <h1 className="editorial-serif mb-8 text-3xl font-black leading-tight tracking-tight sm:text-5xl">
-                      {fullArticle.title}
-                    </h1>
-                    
-                    <div className="prose prose-stone prose-lg max-w-none editorial-serif text-[var(--ink)] leading-relaxed">
-                      {fullArticle.content.split('\n').map((paragraph: string, idx: number) => (
-                        <p key={idx} className="mb-6">{paragraph}</p>
-                      ))}
-                    </div>
-
-                    {opposingError && (
-                      <div className="mt-8 border border-amber-500 bg-amber-50 p-4">
-                        <p className="editorial-mono text-[10px] uppercase text-amber-700 font-bold">{opposingError}</p>
-                      </div>
-                    )}
-                    
-                    {opposingArticle && (
-                      <div className="mt-12 border-2 border-[var(--accent)] bg-[var(--card)] p-6 shadow-[8px_8px_0_var(--accent)] transition-all">
-                        <div className="mb-4 flex items-center justify-between border-b editorial-rule pb-3">
-                          <h3 className="editorial-serif text-2xl font-bold tracking-tight">Perspective Challenge</h3>
-                          <span className="editorial-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Agent Suggestion</span>
-                        </div>
-                        <div className="mb-2 flex items-center gap-3 editorial-mono text-[9px] uppercase tracking-[.15em] text-[var(--accent)]">
-                          <span className="font-bold">{opposingArticle.bias} Viewpoint</span>
-                          <span>•</span>
-                          <span>{Math.round(opposingArticle.similarity * 100)}% Match</span>
-                        </div>
-                        <h4 
-                          className="editorial-serif text-xl font-medium leading-tight mb-4 cursor-pointer hover:text-[var(--accent)] transition-colors" 
-                          onClick={() => handleArticleClick(opposingArticle.article_id)}
-                        >
-                          {opposingArticle.title}
-                        </h4>
-                        <button 
-                          onClick={() => handleArticleClick(opposingArticle.article_id)}
-                          className="editorial-mono text-[9px] uppercase tracking-widest underline decoration-[var(--accent)] underline-offset-4 text-[var(--ink)] hover:text-[var(--accent)]"
-                        >
-                          Read this perspective &rarr;
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="editorial-mono text-red-500">Failed to load article.</p>
-                  </div>
-                )}
-              </div>
-
-              {fullArticle && !loadingArticle && (
-                <div className="border-t editorial-rule bg-[var(--paper-deep)] p-4 sm:p-6">
-                  <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-4">
-                    <a 
-                      href={fullArticle.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="editorial-mono text-[10px] uppercase tracking-widest underline decoration-[var(--rule)] underline-offset-4 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
-                    >
-                      Read on Original Site
-                    </a>
-                    
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={handleLikeClick}
-                        className={`flex items-center gap-2 border px-4 py-2 transition-all hover:-translate-y-0.5 ${
-                          isLiked 
-                            ? 'border-red-500 bg-red-500/10 text-red-500 font-bold' 
-                            : 'border-[var(--rule)] bg-[var(--card)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                        }`}
-                      >
-                        <Heart size={14} className={isLiked ? 'fill-current' : ''} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{isLiked ? 'Liked' : 'Like'}</span>
-                      </button>
-                      
-                      <button 
-                        onClick={handleBiasedClick}
-                        className={`flex items-center gap-2 border px-4 py-2 transition-all hover:-translate-y-0.5 ${
-                          isBiased 
-                            ? 'border-amber-500 bg-amber-500/10 text-amber-500 font-bold' 
-                            : 'border-[var(--rule)] bg-[var(--card)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                        }`}
-                      >
-                        <AlertTriangle size={14} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{isBiased ? 'Biased Flagged' : 'Too Biased'}</span>
-                      </button>
-                      
-                      <button 
-                        onClick={handleOtherSideClick}
-                        disabled={loadingOpposing}
-                        className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)] disabled:opacity-50 disabled:hover:translate-y-0"
-                      >
-                        <RefreshCw size={14} className={loadingOpposing ? "animate-spin" : ""} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{loadingOpposing ? 'Searching...' : 'Other Side'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
+          <ReadingModal 
+            fullArticle={fullArticle}
+            loadingArticle={loadingArticle}
+            isLiked={isLiked}
+            isBiased={isBiased}
+            opposingArticle={opposingArticle}
+            loadingOpposing={loadingOpposing}
+            opposingError={opposingError}
+            onClose={closeReadingView}
+            onLike={handleLikeClick}
+            onBiased={handleBiasedClick}
+            onOtherSide={handleOtherSideClick}
+            onReadOpposing={handleArticleClick}
+          />
         )}
       </AnimatePresence>
     </main>
   );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="px-5 first:pl-2 last:pr-2 whitespace-nowrap">
-      <p className="editorial-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">{label}</p>
-      <p className="editorial-serif mt-1 text-xl font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function formatLeaning(value: number) {
-  if (value <= -0.34) return `Left (${value.toFixed(1)})`;
-  if (value >= 0.34) return `Right (${value.toFixed(1)})`;
-  return `Center (${value.toFixed(1)})`;
 }
