@@ -95,3 +95,54 @@ def upload_article_to_s3(article_data: Dict[str, Any], s3_key: str) -> Dict[str,
             "bucket": bucket_name,
             "notice": err_msg,
         }
+
+
+def fetch_archived_article_from_s3(s3_archive_url: str) -> Optional[Dict[str, Any]]:
+    """
+    Tier 3 Fetch: Seamlessly retrieves archived JSON payload from AWS S3.
+    """
+    bucket_name = settings.AWS_S3_BUCKET_NAME or "amplinews-archive-store"
+
+    # Parse s3_archive_url (e.g. s3://amplinews-archive-store/archive/year=2026/... or key path)
+    if s3_archive_url.startswith("s3://"):
+        parts = s3_archive_url.replace("s3://", "").split("/", 1)
+        bucket = parts[0]
+        key = parts[1] if len(parts) > 1 else ""
+    else:
+        bucket = bucket_name
+        key = s3_archive_url
+
+    if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY:
+        logger.info(f"[AWS S3] Simulated cold storage retrieval for key: {key}")
+        return {
+            "title": "Archived Article (Cold Storage)",
+            "content": f"Full text loaded from S3 archive pointer: {s3_archive_url}",
+            "source": "S3 Archive Store",
+            "url": "https://amplinews.com/archive",
+            "published_date": None,
+            "is_archived": True,
+        }
+
+    try:
+        s3_client = boto3.client(
+            "s3",
+            region_name=settings.AWS_REGION or "us-east-1",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        )
+
+        response = s3_client.get_object(Bucket=bucket, Key=key)
+        content_bytes = response["Body"].read()
+        payload = json.loads(content_bytes.decode("utf-8"))
+        logger.info(f"[AWS S3] Successfully retrieved archived payload from {s3_archive_url}")
+        return payload
+
+    except (ClientError, BotoCoreError, Exception) as exc:
+        logger.error(f"[AWS S3] Failed to fetch object from S3 ({s3_archive_url}): {exc}")
+        return {
+            "title": "Archived Article",
+            "content": f"[Archived Content - S3 cold storage fetch note: {str(exc)}]",
+            "source": "Archive Store",
+            "is_archived": True,
+        }
+
