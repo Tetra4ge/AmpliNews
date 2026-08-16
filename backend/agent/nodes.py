@@ -85,3 +85,75 @@ def retrieve_context_node(state: DigestState) -> DigestState:
         db.close()
 
     return state
+
+
+def analyze_bias_node(state: DigestState) -> DigestState:
+    """
+    Node 2: AnalyzeBiasNode
+    Calculates echo chamber risk based on user's recent reading history.
+    Detects bias skew and low variance.
+    """
+    history = state.get("reading_history", [])
+    if not history:
+        # Default fallback for new/inactive users
+        state["echo_chamber_risk"] = 0.0
+        state["echo_chamber_detected"] = False
+        state["dominant_bias"] = "Balanced"
+        state["top_topic"] = "Politics"
+        return state
+
+    bias_scores = [item["bias_score"] for item in history if item.get("bias_score") is not None]
+    topics = [item["topic"] for item in history if item.get("topic")]
+
+    # Find top read topic
+    top_topic = None
+    if topics:
+        topic_counts: Dict[str, int] = {}
+        for t in topics:
+            topic_counts[t] = topic_counts.get(t, 0) + 1
+        top_topic = max(topic_counts, key=topic_counts.get)
+    state["top_topic"] = top_topic or "Politics"
+
+    if not bias_scores:
+        state["echo_chamber_risk"] = 0.0
+        state["echo_chamber_detected"] = False
+        state["dominant_bias"] = "Balanced"
+        return state
+
+    # Statistical calculation
+    avg_bias = sum(bias_scores) / len(bias_scores)
+    variance = sum((b - avg_bias) ** 2 for b in bias_scores) / len(bias_scores)
+    std_dev = math.sqrt(variance)
+
+    # Determine dominant bias label
+    if avg_bias < -0.3:
+        dominant_bias = "Left"
+    elif avg_bias > 0.3:
+        dominant_bias = "Right"
+    else:
+        dominant_bias = "Center"
+
+    # Echo Chamber Risk formula:
+    # High risk if high mean skew AND low standard deviation (narrow spectrum)
+    # or if > 70% of reads are heavily biased to one side.
+    skew_component = abs(avg_bias)  # 0 to 1
+    narrowness_component = max(0.0, 1.0 - (std_dev * 2.0))  # 1 when std_dev close to 0
+
+    echo_chamber_risk = round(0.6 * skew_component + 0.4 * narrowness_component, 2)
+    # Ensure range [0.0, 1.0]
+    echo_chamber_risk = max(0.0, min(1.0, echo_chamber_risk))
+
+    # Threshold for perspective intervention
+    echo_chamber_detected = echo_chamber_risk >= 0.65
+
+    state["echo_chamber_risk"] = echo_chamber_risk
+    state["echo_chamber_detected"] = echo_chamber_detected
+    state["dominant_bias"] = dominant_bias if echo_chamber_detected else "Balanced"
+
+    logger.info(
+        f"[AnalyzeBiasNode] User {state.get('user_id')}: avg_bias={avg_bias:.2f}, "
+        f"std_dev={std_dev:.2f}, risk={echo_chamber_risk}, detected={echo_chamber_detected}"
+    )
+
+    return state
+
