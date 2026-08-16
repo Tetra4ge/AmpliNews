@@ -12,7 +12,8 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from core.config import settings
 
 EMBEDDING_DIMENSIONS = 384
-API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+# Hugging Face migrated serverless inference from legacy api-inference.huggingface.co to router.huggingface.co
+API_URL = "https://router.huggingface.co/hf-inference/models/BAAI/bge-small-en-v1.5"
 
 class HFApiError(Exception):
     pass

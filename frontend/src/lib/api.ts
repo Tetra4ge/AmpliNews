@@ -65,3 +65,15 @@ export function fetchFeed() {
 export function fetchArticleById(id: string) {
   return api.get(`/api/articles/${id}`);
 }
+
+export interface ReadPayload {
+  article_id: string;
+  read_duration_seconds: number;
+  liked?: boolean;
+  rejected_biased?: boolean;
+}
+
+export function logArticleRead(payload: ReadPayload) {
+  return api.post('/api/articles/read', payload);
+}
+

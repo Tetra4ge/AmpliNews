@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { AnimatePresence, motion } from 'framer-motion';
-import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, type UserProfileResponse, type Article } from '../lib/api';
+import { fetchUserProfile, syncUser, fetchFeed, fetchArticleById, logArticleRead, type UserProfileResponse, type Article } from '../lib/api';
 import { ArrowUpRight, LogOut, Compass, Bookmark, X, Heart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
@@ -26,6 +26,9 @@ export default function Dashboard() {
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [fullArticle, setFullArticle] = useState<any | null>(null);
   const [loadingArticle, setLoadingArticle] = useState(false);
+  const [readStartTime, setReadStartTime] = useState<number | null>(null);
+  const [isLiked, setIsLiked] = useState<boolean>(false);
+  const [isBiased, setIsBiased] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +112,9 @@ export default function Dashboard() {
 
   async function handleArticleClick(id: string) {
     setSelectedArticleId(id);
+    setReadStartTime(Date.now());
+    setIsLiked(false);
+    setIsBiased(false);
     setLoadingArticle(true);
     setFullArticle(null);
     try {
@@ -121,9 +127,63 @@ export default function Dashboard() {
     }
   }
 
-  function closeReadingView() {
+  async function closeReadingView() {
+    if (selectedArticleId && readStartTime) {
+      const duration = Math.max(0, Math.round((Date.now() - readStartTime) / 1000));
+      try {
+        await logArticleRead({
+          article_id: selectedArticleId,
+          read_duration_seconds: duration,
+          liked: isLiked,
+          rejected_biased: isBiased
+        });
+      } catch (err) {
+        console.error("Failed to log reading interaction", err);
+      }
+    }
     setSelectedArticleId(null);
     setFullArticle(null);
+    setReadStartTime(null);
+    setIsLiked(false);
+    setIsBiased(false);
+  }
+
+  async function handleLikeClick() {
+    if (!selectedArticleId) return;
+    const newLiked = !isLiked;
+    setIsLiked(newLiked);
+    if (newLiked) setIsBiased(false);
+
+    const duration = readStartTime ? Math.max(0, Math.round((Date.now() - readStartTime) / 1000)) : 0;
+    try {
+      await logArticleRead({
+        article_id: selectedArticleId,
+        read_duration_seconds: duration,
+        liked: newLiked,
+        rejected_biased: false
+      });
+    } catch (err) {
+      console.error("Failed to log like interaction", err);
+    }
+  }
+
+  async function handleBiasedClick() {
+    if (!selectedArticleId) return;
+    const newBiased = !isBiased;
+    setIsBiased(newBiased);
+    if (newBiased) setIsLiked(false);
+
+    const duration = readStartTime ? Math.max(0, Math.round((Date.now() - readStartTime) / 1000)) : 0;
+    try {
+      await logArticleRead({
+        article_id: selectedArticleId,
+        read_duration_seconds: duration,
+        liked: false,
+        rejected_biased: newBiased
+      });
+    } catch (err) {
+      console.error("Failed to log biased interaction", err);
+    }
   }
 
   if (view === 'loading') {
@@ -387,14 +447,28 @@ export default function Dashboard() {
                     </a>
                     
                     <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
-                        <Heart size={14} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Like</span>
+                      <button 
+                        onClick={handleLikeClick}
+                        className={`flex items-center gap-2 border px-4 py-2 transition-all hover:-translate-y-0.5 ${
+                          isLiked 
+                            ? 'border-red-500 bg-red-500/10 text-red-500 font-bold' 
+                            : 'border-[var(--rule)] bg-[var(--card)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                        }`}
+                      >
+                        <Heart size={14} className={isLiked ? 'fill-current' : ''} />
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{isLiked ? 'Liked' : 'Like'}</span>
                       </button>
                       
-                      <button className="flex items-center gap-2 border border-[var(--rule)] bg-[var(--card)] px-4 py-2 transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                      <button 
+                        onClick={handleBiasedClick}
+                        className={`flex items-center gap-2 border px-4 py-2 transition-all hover:-translate-y-0.5 ${
+                          isBiased 
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-500 font-bold' 
+                            : 'border-[var(--rule)] bg-[var(--card)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                        }`}
+                      >
                         <AlertTriangle size={14} />
-                        <span className="editorial-mono text-[9px] uppercase tracking-widest">Biased</span>
+                        <span className="editorial-mono text-[9px] uppercase tracking-widest">{isBiased ? 'Biased Flagged' : 'Too Biased'}</span>
                       </button>
                       
                       <button className="flex items-center gap-2 bg-[var(--ink)] text-[var(--paper)] px-4 py-2 transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_var(--accent)]">
