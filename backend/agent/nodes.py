@@ -181,10 +181,11 @@ def curate_standard_node(state: DigestState) -> DigestState:
         user_embedding = profile.interest_embedding
         similarity = Article.article_embedding.cosine_distance(user_embedding).label("distance")
 
-        # Query top 10 articles by vector distance
+        # Query top articles with valid embeddings by vector distance
         query = (
             select(Article, ArticleMetadata, similarity)
             .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+            .where(Article.article_embedding.isnot(None))
             .order_by(similarity)
             .limit(15)
         )
@@ -198,7 +199,7 @@ def curate_standard_node(state: DigestState) -> DigestState:
             if art_id_str in read_article_ids:
                 continue
 
-            match_pct = round((1 - float(distance)) * 100, 1)
+            match_pct = round((1 - float(distance)) * 100, 1) if distance is not None else 85.0
             bias_val = metadata.bias_score or 0.0
 
             if bias_val < -0.3:
@@ -208,12 +209,14 @@ def curate_standard_node(state: DigestState) -> DigestState:
             else:
                 bias_label = "Center"
 
+            content_summary = (article.content[:200] + "...") if article.content and len(article.content) > 200 else (article.content or article.title)
+
             curated.append({
                 "article_id": art_id_str,
                 "title": article.title,
                 "source": article.source,
                 "url": article.url,
-                "content_summary": article.content[:200] + "..." if len(article.content) > 200 else article.content,
+                "content_summary": content_summary,
                 "match_percentage": match_pct,
                 "bias": bias_label,
                 "bias_score": bias_val,
@@ -269,6 +272,7 @@ def curate_contrarian_node(state: DigestState) -> DigestState:
             query = (
                 select(Article, ArticleMetadata, similarity)
                 .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+                .where(Article.article_embedding.isnot(None))
                 .where(bias_filter)
                 .order_by(similarity, ArticleMetadata.source_credibility.desc())
                 .limit(5)
@@ -288,7 +292,7 @@ def curate_contrarian_node(state: DigestState) -> DigestState:
         for row in results:
             if len(row) == 3:
                 article, metadata, distance = row
-                match_pct = round((1 - float(distance)) * 100, 1)
+                match_pct = round((1 - float(distance)) * 100, 1) if distance is not None else 80.0
             else:
                 article, metadata = row
                 match_pct = 80.0
@@ -301,12 +305,14 @@ def curate_contrarian_node(state: DigestState) -> DigestState:
             else:
                 bias_label = "Center"
 
+            content_summary = (article.content[:200] + "...") if article.content and len(article.content) > 200 else (article.content or article.title)
+
             contrarians.append({
                 "article_id": str(article.id),
                 "title": article.title,
                 "source": article.source,
                 "url": article.url,
-                "content_summary": article.content[:200] + "..." if len(article.content) > 200 else article.content,
+                "content_summary": content_summary,
                 "match_percentage": match_pct,
                 "bias": bias_label,
                 "bias_score": bias_val,
@@ -327,6 +333,7 @@ def curate_contrarian_node(state: DigestState) -> DigestState:
         db.close()
 
     return state
+
 
 
 def synthesize_digest_node(state: DigestState) -> DigestState:
