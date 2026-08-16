@@ -6,7 +6,7 @@ from sqlalchemy import select
 from api.deps import get_db, get_current_user
 from models.article import Article
 from models.article_metadata import ArticleMetadata
-from schemas.agent import OpposingViewRequest, OpposingViewResponse
+from schemas.agent import OpposingViewRequest, OpposingViewResponse, DigestRequest, DigestTriggerResponse
 from api.routes.articles import get_bias_label
 
 router = APIRouter()
@@ -82,3 +82,45 @@ def get_opposing_view(
         credibility=opposing_metadata.source_credibility,
         similarity=float(similarity)
     )
+
+
+@router.post("/digest", response_model=DigestTriggerResponse)
+def trigger_user_digest(
+    payload: DigestRequest = DigestRequest(),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    On-demand endpoint for a user to trigger their own Phase 9 LangGraph daily digest generation.
+    Runs context retrieval, echo chamber risk analysis, standard/contrarian curation, and Groq synthesis.
+    """
+    from agent.graph import run_digest_agent
+    from services.email import send_digest_email
+
+    state = run_digest_agent(current_user_id)
+    if state.get("status") == "error":
+        raise HTTPException(
+            status_code=500,
+            detail=state.get("error_message") or "Failed to generate digest"
+        )
+
+    email_status = "skipped"
+    if payload.send_email and state.get("final_email_html") and state.get("user_email"):
+        res = send_digest_email(
+            to_email=state["user_email"],
+            html_content=state["final_email_html"],
+            subject="Your AmpliNews Daily Digest 🗞️"
+        )
+        email_status = res.get("status", "unknown")
+
+    return DigestTriggerResponse(
+        user_id=current_user_id,
+        status=state.get("status", "success"),
+        echo_chamber_risk=state.get("echo_chamber_risk", 0.0),
+        echo_chamber_detected=state.get("echo_chamber_detected", False),
+        dominant_bias=state.get("dominant_bias", "Balanced"),
+        articles_selected_count=len(state.get("selected_articles", [])),
+        contrarian_articles_count=len(state.get("contrarian_articles", [])),
+        html_preview=state.get("final_email_html", "")[:300] + "...",
+        email_status=email_status
+    )
+

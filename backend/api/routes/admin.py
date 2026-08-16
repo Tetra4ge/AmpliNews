@@ -46,3 +46,15 @@ async def trigger_enrichment(db: Session = Depends(get_db)):
     """
     summary = await run_enrichment(db)
     return {"status": "success", **summary}
+
+
+@router.post("/digest", dependencies=[Depends(verify_admin_secret)])
+async def trigger_global_digest():
+    """Manually triggers the Phase 9 daily digest machine across all users.
+
+    Invokes the AWS Lambda handler flow locally/serverlessly.
+    """
+    from lambda_handler import lambda_handler
+    summary = lambda_handler({}, None)
+    return summary
+
