@@ -29,36 +29,47 @@ def get_personalized_feed(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user),
     limit: int = 10,
-    days_back: int = 2
+    days_back: int = 30
 ):
     # Fetch User Profile to get interest_embedding
     user_profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
-    
+
     if not user_profile or user_profile.interest_embedding is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User profile has no interests defined. Please complete onboarding."
         )
-        
+
     user_embedding = user_profile.interest_embedding
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
-    
+
     # Intelligent News Feed API:
     # Vector Similarity Search using pgvector's <=> (cosine distance)
     # This leverages the HNSW index on the database!
     similarity = Article.article_embedding.cosine_distance(user_embedding).label('distance')
-    
-    # The optimized JOIN query that fetches articles, metadata, and calculates distance simultaneously
-    query = (
-        select(Article, ArticleMetadata, similarity)
-        .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
-        .where(Article.published_date > cutoff_date)
-        .order_by(similarity)
-        .limit(limit)
-    )
-    
-    results = db.execute(query).all()
-    
+
+    # The optimized JOIN query that fetches articles, metadata, and calculates distance simultaneously.
+    # Both the recency window and enrichment (article_embedding + metadata row) must be
+    # satisfied at once - when the ingestion/enrichment pipeline hasn't run recently
+    # (e.g. local dev), a tight window can starve the feed even though older enriched
+    # articles exist. So we widen the window in stages rather than failing outright.
+    def run_query(cutoff_date):
+        query = (
+            select(Article, ArticleMetadata, similarity)
+            .join(ArticleMetadata, Article.id == ArticleMetadata.article_id)
+            .where(Article.article_embedding.isnot(None))
+            .where(Article.published_date > cutoff_date)
+            .order_by(similarity)
+            .limit(limit)
+        )
+        return db.execute(query).all()
+
+    now = datetime.now(timezone.utc)
+    results = run_query(now - timedelta(days=days_back))
+    if not results:
+        # Fall back to the full backlog of enriched articles instead of showing
+        # an empty dashboard - still ranked by relevance, just not recency-capped.
+        results = run_query(now - timedelta(days=3650))
+
     feed = []
     for article, metadata, distance in results:
         # Math Transform: Cosine Similarity = 1 - Cosine Distance

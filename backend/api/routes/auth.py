@@ -16,21 +16,25 @@ def sync_user(
     db: Session = Depends(get_db)
 ):
     """
-    Syncs the user profile into CockroachDB. 
-    If the user doesn't exist, it generates an initial 384d vector based on their selected topics.
+    Syncs the user profile into CockroachDB.
+    - New user: creates a profile with an initial 384d vector based on their selected topics.
+    - Existing user: regenerates the interest vector from the newly selected topics and
+      updates the baseline leaning, so this endpoint also powers "edit preferences".
     """
     try:
         user_uuid = uuid.UUID(current_user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID format in token")
 
-    # Check if user already exists (Idempotency)
+    # Regenerate the interest embedding from the (possibly updated) topic selection.
+    interest_embedding = generate_user_embedding(request.selected_topics)
+
     existing_user = db.query(UserProfile).filter(UserProfile.user_id == user_uuid).first()
     if existing_user:
-        return {"message": "User already synced"}
-
-    # Generate initial interest embedding via HuggingFace
-    interest_embedding = generate_user_embedding(request.selected_topics)
+        existing_user.interest_embedding = interest_embedding
+        existing_user.baseline_political_leaning = request.baseline_leaning
+        db.commit()
+        return {"message": "User preferences updated"}
 
     # Create new profile
     new_profile = UserProfile(

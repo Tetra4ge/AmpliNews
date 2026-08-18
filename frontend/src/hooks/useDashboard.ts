@@ -29,6 +29,11 @@ export function useDashboard(navigate: any) {
   const [loadingOpposing, setLoadingOpposing] = useState(false);
   const [opposingError, setOpposingError] = useState<string | null>(null);
 
+  // Preferences Editing State
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [prefSubmitting, setPrefSubmitting] = useState(false);
+  const [prefError, setPrefError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -100,6 +105,37 @@ export function useDashboard(navigate: any) {
       setError('Failed to save your preferences. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openPreferences() {
+    setSelectedTopics([]);
+    setLeaning(profile?.baseline_political_leaning ?? 0);
+    setPrefError(null);
+    setIsPreferencesOpen(true);
+  }
+
+  function closePreferences() {
+    setIsPreferencesOpen(false);
+    setPrefError(null);
+  }
+
+  async function handlePreferencesSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (selectedTopics.length === 0) return;
+    setPrefSubmitting(true);
+    setPrefError(null);
+
+    try {
+      await syncUser({ selected_topics: selectedTopics, baseline_leaning: leaning });
+      const [profileRes, feedRes] = await Promise.all([fetchUserProfile(), fetchFeed()]);
+      setProfile(profileRes.data);
+      setFeed(feedRes.data.feed || []);
+      setIsPreferencesOpen(false);
+    } catch {
+      setPrefError('Failed to update your preferences. Please try again.');
+    } finally {
+      setPrefSubmitting(false);
     }
   }
 
@@ -224,6 +260,9 @@ export function useDashboard(navigate: any) {
     opposingArticle,
     loadingOpposing,
     opposingError,
+    isPreferencesOpen,
+    prefSubmitting,
+    prefError,
     setLeaning,
     toggleTopic,
     handleOnboardingSubmit,
@@ -232,6 +271,9 @@ export function useDashboard(navigate: any) {
     closeReadingView,
     handleLikeClick,
     handleBiasedClick,
-    handleOtherSideClick
+    handleOtherSideClick,
+    openPreferences,
+    closePreferences,
+    handlePreferencesSubmit
   };
 }

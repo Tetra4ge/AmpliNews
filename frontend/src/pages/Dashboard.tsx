@@ -1,15 +1,15 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, LogOut, Compass, Moon, Sun } from 'lucide-react';
+import { ArrowUpRight, LogOut, Compass, Moon, Sun, Settings } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useTheme } from '../hooks/useTheme';
 import { ArticleCard } from '../components/dashboard/ArticleCard';
 import { ReadingModal } from '../components/dashboard/ReadingModal';
+import { PreferencesModal } from '../components/dashboard/PreferencesModal';
 import { Stat } from '../components/dashboard/Stat';
 import { EchoChamberBanner } from '../components/dashboard/EchoChamberBanner';
 import { formatLeaning } from '../utils/formatters';
-
-const TOPICS = ['Politics', 'Tech', 'Health', 'Sports', 'Business'];
+import { TOPICS } from '../utils/constants';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -31,6 +31,9 @@ export default function Dashboard() {
     opposingArticle,
     loadingOpposing,
     opposingError,
+    isPreferencesOpen,
+    prefSubmitting,
+    prefError,
     setLeaning,
     toggleTopic,
     handleOnboardingSubmit,
@@ -39,7 +42,10 @@ export default function Dashboard() {
     closeReadingView,
     handleLikeClick,
     handleBiasedClick,
-    handleOtherSideClick
+    handleOtherSideClick,
+    openPreferences,
+    closePreferences,
+    handlePreferencesSubmit
   } = useDashboard(navigate);
 
   if (view === 'loading') {
@@ -143,6 +149,12 @@ export default function Dashboard() {
           </Link>
           <div className="flex items-center gap-4">
             <button
+              onClick={openPreferences}
+              className="flex items-center gap-2 editorial-mono text-[9px] font-medium uppercase tracking-[.1em] text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+            >
+              Preferences <Settings size={13} />
+            </button>
+            <button
               onClick={(event) => {
                 const bounds = event.currentTarget.getBoundingClientRect();
                 toggleTheme({ x: event.clientX || bounds.left + bounds.width / 2, y: event.clientY || bounds.top + bounds.height / 2 });
@@ -229,7 +241,7 @@ export default function Dashboard() {
 
       <AnimatePresence>
         {selectedArticleId && (
-          <ReadingModal 
+          <ReadingModal
             fullArticle={fullArticle}
             loadingArticle={loadingArticle}
             isLiked={isLiked}
@@ -242,6 +254,21 @@ export default function Dashboard() {
             onBiased={handleBiasedClick}
             onOtherSide={handleOtherSideClick}
             onReadOpposing={handleArticleClick}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isPreferencesOpen && (
+          <PreferencesModal
+            selectedTopics={selectedTopics}
+            leaning={leaning}
+            submitting={prefSubmitting}
+            error={prefError}
+            onToggleTopic={toggleTopic}
+            onLeaningChange={setLeaning}
+            onSubmit={handlePreferencesSubmit}
+            onClose={closePreferences}
           />
         )}
       </AnimatePresence>
