@@ -10,7 +10,7 @@ from llm.prompts import ArticleAnalysis, build_article_analysis_messages
 
 # Fast, cheap Llama model - good enough for structured classification and
 # keeps the enrichment loop well within the "10 articles < 15s" budget.
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = settings.GROQ_MODEL
 
 _client: Groq | None = None
 

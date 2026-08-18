@@ -417,7 +417,7 @@ def synthesize_digest_node(state: DigestState) -> DigestState:
         Return ONLY valid raw HTML code without markdown code blocks."""
 
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=settings.GROQ_MODEL,
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": prompt_context}
